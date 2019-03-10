@@ -59,7 +59,7 @@ func readMessage(conn *net.TCPConn){
 	}
 }
 
-func start_server(port_num string){
+func start_server(port_num string, ch chan bool){
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
@@ -68,6 +68,7 @@ func start_server(port_num string){
 	}
 
 	fmt.Println("#Start listening on " + port_num)
+	ch <- true
 	for {
 		conn, err := tcp_listen.AcceptTCP()
 		if err != nil{
@@ -87,6 +88,8 @@ func main() {
 
 	self_nodename := os.Args[1]
 	self_server_port_number := os.Args[2]
+
+	start_listening := make(chan bool)
 
 	//Get local ip address
 	addrs, err := net.InterfaceAddrs()
@@ -109,8 +112,8 @@ func main() {
 	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
-	go start_server(self_server_port_number)
-
+	go start_server(self_server_port_number, start_listening)
+	<-start_listening
 	serverhost = server_address + ":" + server_portnumber
 	for {
 		tcp_add, _ := net.ResolveTCPAddr("tcp", serverhost)
