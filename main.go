@@ -13,8 +13,10 @@ var (
 )
 
 var (
+	//server_address = "10.192.137.227"
 	server_address = "172.22.156.52"
-	server_portnumber = "4444" //Port number listen on
+	server_portnumber = "8888" //Port number listen on
+	serverhost string
 )
 
 var (
@@ -33,7 +35,6 @@ func checkErr(err error) int {
 	return 1
 }
 
-
 func readMessage(conn *net.TCPConn){
 	fmt.Println("Begin read message")
 	buff := make([]byte, 256)
@@ -45,12 +46,16 @@ func readMessage(conn *net.TCPConn){
 			break
 		}
 
+		fmt.Println("Recevied string = ", string(buff[0:j]))
 		recevied_string_spilt := strings.Split(string(buff[0:j]), " ")
 
 		if recevied_string_spilt[0] == "INTRODUCE" {
 			fmt.Println("Recevied an INTRODUCE")
 		}
 
+		if recevied_string_spilt[0] == "TRANSACTION" {
+			fmt.Println("Recevied an TRANSACTION")
+		}
 	}
 }
 
@@ -64,12 +69,15 @@ func start_server(port_num string){
 
 	fmt.Println("#Start listening on " + port_num)
 	for {
-		conn, _ := tcp_listen.AcceptTCP()
+		conn, err := tcp_listen.AcceptTCP()
+		if err != nil{
+			fmt.Println("Error in AcceptTCP")
+		}
+		fmt.Println("Accepted a TCP")
 		defer conn.Close()
 		go readMessage(conn)
 	}
 }
-
 
 func main() {
 	if len(os.Args) != 3 {
@@ -101,8 +109,11 @@ func main() {
 	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
+	go start_server(self_server_port_number)
+
+	serverhost = server_address + ":" + server_portnumber
 	for {
-		tcp_add, _ := net.ResolveTCPAddr("tcp", server_address + ":" + server_portnumber)
+		tcp_add, _ := net.ResolveTCPAddr("tcp", serverhost)
 		conn, err := net.DialTCP("tcp", nil, tcp_add)
 		if err != nil {
 			fmt.Println("#Failed to connect to the server")
@@ -115,9 +126,6 @@ func main() {
 		break
 	}
 
-	fmt.Println("Finished sending connection to the serivce")
-
-	go start_server(self_server_port_number)
 	<-working_chan
 	fmt.Println("Shall not reach here")
 }
