@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="68986981-d970-4656-af88-af9ab05b33ad" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -15,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="243">
-              <caret line="147" column="54" selection-start-line="147" selection-start-column="45" selection-end-line="147" selection-end-column="54" />
+            <state relative-caret-position="53">
+              <caret line="202" column="61" lean-forward="true" selection-start-line="202" selection-start-column="61" selection-end-line="202" selection-end-column="61" />
               <folding>
                 <element signature="e#14#55#0" expanded="true" />
               </folding>
@@ -43,6 +43,7 @@
       <find>Println</find>
       <find>multicast_transaction</find>
       <find>localhost</find>
+      <find>start_</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -57,7 +58,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="1">
+  <component name="ProjectFrameBounds">
     <option name="x" value="-1262" />
     <option name="y" value="62" />
     <option name="width" value="1440" />
@@ -105,7 +106,7 @@
     </option>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-1262" y="62" width="1440" height="840" extended-state="1" />
+    <frame x="-1262" y="62" width="1440" height="840" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.18383405" />
@@ -121,7 +122,7 @@
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Database Changes" order="8" />
       <window_info anchor="bottom" id="Version Control" order="9" />
-      <window_info anchor="bottom" id="Terminal" order="10" visible="true" weight="0.19518717" />
+      <window_info anchor="bottom" id="Terminal" order="10" visible="true" weight="0.19652407" />
       <window_info anchor="bottom" id="Event Log" order="11" side_tool="true" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -138,8 +139,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="243">
-          <caret line="147" column="54" selection-start-line="147" selection-start-column="45" selection-end-line="147" selection-end-column="54" />
+        <state relative-caret-position="53">
+          <caret line="202" column="61" lean-forward="true" selection-start-line="202" selection-start-column="61" selection-end-line="202" selection-end-column="61" />
           <folding>
             <element signature="e#14#55#0" expanded="true" />
           </folding>

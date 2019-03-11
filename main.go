@@ -50,6 +50,7 @@ func checkErr(err error) int {
 func multicast_transaction(){
 
 	for {
+		time.Sleep(2 * time.Second)
 		if(len(holdback_transaction) == 0){
 			continue
 		}
@@ -64,7 +65,7 @@ func multicast_transaction(){
 		}
 
 		pointer = (pointer + 1) % len(holdback_transaction)
-		time.Sleep(2 * time.Second)
+
 	}
 
 }
@@ -188,7 +189,6 @@ func main(){
 
 	self_nodename := os.Args[1]
 	self_server_port_number := os.Args[2]
-
 	//Get local ip address
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
