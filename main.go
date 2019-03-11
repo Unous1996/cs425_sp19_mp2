@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"math/rand"
 )
 
 var (
@@ -17,12 +18,14 @@ var (
 	//server_address = "10.192.137.227"
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
+	gossip_fanout = 3
 	serverhost string
 )
 
 var (
 	working_chan chan bool
 	introduce_chan chan string
+	gossip_chan chan string
 )
 
 var (
@@ -32,6 +35,7 @@ var (
 
 var (
 	holdback_transaction []string
+	send_map_key []string
 	pointer int
 )
 
@@ -44,30 +48,58 @@ func checkErr(err error) int {
 		fmt.Println(err)
 		return -1
 	}
-	return 1
+	return 1     
 }
 
-func multicast_transaction(){
+func generateRandom(upper_bound int, num int) [] int{
+	rand.Seed(time.Now().UnixNano())
+	var result []int
+
+	if(upper_bound <= num){
+		for i := 0; i < upper_bound; i++ {
+			result = append(result, i)
+		}
+		return result
+	}
+	
+	for i := 0 ; i < num; i++ {
+		for {
+			appear := false
+			temp := rand.Intn(upper_bound)
+			for _, value := range result{
+				if temp == value{
+				appear = true
+				}
+			}
+
+			if(appear == false){
+				result = append(result, temp)
+				break
+			}
+			temp += 1
+		}
+	}
+	return result
+}
+
+func gossip_transaction(){
 
 	for {
-		time.Sleep(2 * time.Second)
-		if(len(holdback_transaction) == 0){
-			continue
-		}
+		gossip_message := <-gossip_chan
+		
+		b := []byte(gossip_message)
 
-		b := []byte(holdback_transaction[pointer])
+		receivers := generateRandom(len(send_map) , gossip_fanout)
 
-		for _, conn := range send_map {
+		for _, value := range receivers {
+			conn := send_map[send_map_key[value]]
 			if conn.RemoteAddr().String() == localhost {
 				continue
 			}
 			conn.Write(b)
 		}
 
-		pointer = (pointer + 1) % len(holdback_transaction)
-
 	}
-
 }
 
 func printTransaction(xaction string){
@@ -108,9 +140,23 @@ func readMessage(conn *net.TCPConn){
 			*/
 
 			if(line_split[0] == "TRANSACTION"){
+				found := false
+				for _, value := range holdback_transaction {
+					if line == value{
+						found = true
+						break
+					}
+				}
+
+				if(found == true){
+					continue
+				}
+
 				printTransaction(line)
 				holdback_transaction = append(holdback_transaction, line)
+				gossip_chan <- line
 			}
+
 		}
 	}
 }
@@ -130,6 +176,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 			fmt.Println("Failed while dialing the remote node " + remotehost)
 		}
 		send_map[remotehost] = remote_connection
+		send_map_key = append(send_map_key, remotehost)
 		defer remote_connection.Close()
 		go readMessage(remote_connection)
 		remote_connection.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
@@ -172,6 +219,7 @@ func global_map_init(){
 
 func channel_init(){
 	introduce_chan = make(chan string)
+	gossip_chan = make(chan string)
 }
 
 func main_init(){
@@ -191,6 +239,7 @@ func main(){
 	self_server_port_number := os.Args[2]
 	//Get local ip address
 	addrs, err := net.InterfaceAddrs()
+
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -230,7 +279,7 @@ func main(){
 		break
 	}
 
-	go multicast_transaction()
+	go gossip_transaction()
 
 	<-working_chan
 	fmt.Println("Shall not reach here")
