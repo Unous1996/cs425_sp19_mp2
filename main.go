@@ -21,6 +21,12 @@ var (
 
 var (
 	working_chan chan bool
+	introduce_chan chan string
+)
+
+var (
+	read_map         map[string]*net.TCPConn
+	send_map         map[string]*net.TCPConn
 )
 
 func checkErr(err error) int {
@@ -46,20 +52,31 @@ func readMessage(conn *net.TCPConn){
 			break
 		}
 
-		fmt.Println("Recevied string = ", string(buff[0:j]))
-		recevied_string_spilt := strings.Split(string(buff[0:j]), " ")
+		recevied_lines := strings.Split(string(buff[0:j]), "\n")
+		for _, line := range recevied_lines {
+			line_split := strings.Split(line, " ")
+			if(line_split[0] == "INTRODUCE"){
+				remotehost := line_split[2] + ":" + line_split[3]
+				introduce_chan <- remotehost
+			}
 
-		if recevied_string_spilt[0] == "INTRODUCE" {
-			fmt.Println("Recevied an INTRODUCE")
-		}
-
-		if recevied_string_spilt[0] == "TRANSACTION" {
-			fmt.Println("Recevied an TRANSACTION")
+			if(line_split[0] == "TRANSACTION"){
+				fmt.Println("Recevied an TRANSACTION")
+			}
 		}
 	}
 }
 
-func start_server(port_num string, ch chan bool){
+func addremote(){
+	for {
+		remotehost := <-introduce_chan
+		
+	}
+	close(introduce_chan)
+}
+
+func start_server(port_num string) {
+
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
@@ -68,28 +85,39 @@ func start_server(port_num string, ch chan bool){
 	}
 
 	fmt.Println("#Start listening on " + port_num)
-	ch <- true
+	// Accept Tcp connection from other VMs
 	for {
-		conn, err := tcp_listen.AcceptTCP()
-		if err != nil{
-			fmt.Println("Error in AcceptTCP")
-		}
-		fmt.Println("Accepted a TCP")
+		conn, _ := tcp_listen.AcceptTCP()
 		defer conn.Close()
+		read_map[conn.RemoteAddr().String()] = conn
 		go readMessage(conn)
 	}
 }
 
-func main() {
+func global_map_init(){
+	read_map = make(map[string]*net.TCPConn)
+	send_map = make(map[string]*net.TCPConn)
+}
+
+func channel_init(){
+	introduce_chan = make(chan string)
+}
+
+func main_init(){
+	global_map_init()
+	channel_init()
+}
+
+func main(){
 	if len(os.Args) != 3 {
 		fmt.Println(os.Stderr, "Incorrect number of parameters")
 		os.Exit(1)
 	}
 
+	main_init()
+
 	self_nodename := os.Args[1]
 	self_server_port_number := os.Args[2]
-
-	start_listening := make(chan bool)
 
 	//Get local ip address
 	addrs, err := net.InterfaceAddrs()
@@ -112,20 +140,23 @@ func main() {
 	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
-	go start_server(self_server_port_number, start_listening)
-	<-start_listening
+	go start_server(self_server_port_number)
+	go addremote()
+
+	//Connect to server
 	serverhost = server_address + ":" + server_portnumber
 	for {
 		tcp_add, _ := net.ResolveTCPAddr("tcp", serverhost)
-		conn, err := net.DialTCP("tcp", nil, tcp_add)
+		server_connection, err := net.DialTCP("tcp", nil, tcp_add)
 		if err != nil {
 			fmt.Println("#Failed to connect to the server")
 			continue
 		}
 
-		defer conn.Close()
-		conn.Write(connect_message_byte)
-
+		defer server_connection.Close()
+		server_connection.Write(connect_message_byte)
+		read_map[serverhost] = server_connection
+		go readMessage(server_connection)
 		break
 	}
 
