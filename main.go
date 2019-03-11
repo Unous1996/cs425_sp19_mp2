@@ -91,11 +91,20 @@ func readMessage(conn *net.TCPConn){
 			if(line_split[0] == "Acknowledged"){
 				fmt.Println("Received Acknowledged")
 			}
+
 			if(line_split[0] == "INTRODUCE"){
 				fmt.Println("INTRODUCE Received")
 				remotehost := line_split[2] + ":" + line_split[3]
 				introduce_chan <- remotehost
 			}
+
+			/*
+			if(line_split[0] == "REINTRODUCE"){
+				fmt.Println("REINTRODUCE Received")
+				remotehost := line_split[2] + ":" + line_split[3]
+				reintroduce_chan <- remotehost
+			}
+			*/
 
 			if(line_split[0] == "TRANSACTION"){
 				printTransaction(line)
@@ -105,11 +114,12 @@ func readMessage(conn *net.TCPConn){
 	}
 }
 
-func addRemote(){
+func addRemote(node_name string, ip_address string, port_number string){
 	for {
 		remotehost := <-introduce_chan
 
 		if _, ok := send_map[remotehost]; ok {
+			fmt.Println("Redundant connection")
 			continue;
 		}
 
@@ -119,11 +129,19 @@ func addRemote(){
 			fmt.Println("Failed while dialing the remote node " + remotehost)
 		}
 		send_map[remotehost] = remote_connection
-		remote_connection.Write([]byte("Acknowledged"))
+		defer remote_connection.Close()
 		go readMessage(remote_connection)
+		remote_connection.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
 	}
 	close(introduce_chan)
 }
+
+/*
+func readdRemote(){
+	remotehost := <- reintroduce_chan
+
+}
+*/
 
 func start_server(port_num string) {
 
@@ -193,7 +211,7 @@ func main(){
 	connect_message_byte := []byte(connect_message)
 
 	go start_server(self_server_port_number)
-	go addRemote()
+	go addRemote(self_nodename, local_ip_address, self_server_port_number)
 
 	//Connect to server
 	serverhost = server_address + ":" + server_portnumber
