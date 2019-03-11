@@ -67,10 +67,16 @@ func readMessage(conn *net.TCPConn){
 	}
 }
 
-func addremote(){
+func addRemote(){
 	for {
 		remotehost := <-introduce_chan
-		
+		tcp_add, _ := net.ResolveTCPAddr("tcp", remotehost)
+		remote_connection, err := net.DialTCP("tcp", nil, tcp_add)
+		if err != nil {
+			fmt.Println("Failed while dialing the remote node " + remotehost)
+		}
+		send_map[remotehost] = remote_connection
+		go readMessage(remote_connection)
 	}
 	close(introduce_chan)
 }
@@ -141,7 +147,7 @@ func main(){
 	connect_message_byte := []byte(connect_message)
 
 	go start_server(self_server_port_number)
-	go addremote()
+	go addRemote()
 
 	//Connect to server
 	serverhost = server_address + ":" + server_portnumber
