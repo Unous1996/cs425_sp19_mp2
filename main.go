@@ -35,7 +35,6 @@ var (
 
 var (
 	holdback_transaction []string
-	send_map_key []string
 	pointer int
 )
 
@@ -86,19 +85,23 @@ func gossip_transaction(){
 
 	for {
 		gossip_message := <-gossip_chan
-		
 		b := []byte(gossip_message)
-
 		receivers := generateRandom(len(send_map) , gossip_fanout)
+		count := 0
 
-		for _, value := range receivers {
-			conn := send_map[send_map_key[value]]
-			if conn.RemoteAddr().String() == localhost {
+		for _, conn := range send_map {
+			found := false
+			for _, value := range receivers{
+				if(count == value){
+					found = true
+				}
+				break
+			}
+			if (found == false  || conn.RemoteAddr().String() == localhost) {
 				continue
 			}
 			conn.Write(b)
 		}
-
 	}
 }
 
@@ -114,30 +117,26 @@ func readMessage(conn *net.TCPConn){
 		j, err := conn.Read(buff)
 		flag := checkErr(err)
 		if flag == 0 {
-			fmt.Println(" #A node had failed")
+			failed_remote := conn.RemoteAddr().String()
+			if(len(strings.Split(failed_remote,":")[1]) != 5){
+				fmt.Println(" The node with remote address " + failed_remote + "had failed")
+			}
+			delete(send_map, failed_remote)
 			break
 		}
 
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {
 			line_split := strings.Split(line, " ")
-			if(line_split[0] == "Acknowledged"){
-				fmt.Println("Received Acknowledged")
-			}
-
+		
 			if(line_split[0] == "INTRODUCE"){
-				fmt.Println("INTRODUCE Received")
 				remotehost := line_split[2] + ":" + line_split[3]
 				introduce_chan <- remotehost
 			}
 
-			/*
-			if(line_split[0] == "REINTRODUCE"){
-				fmt.Println("REINTRODUCE Received")
-				remotehost := line_split[2] + ":" + line_split[3]
-				reintroduce_chan <- remotehost
+			if(line_split[0] == "DIE" || line_split[0] == "QUIT"){
+				os.Exit(1)
 			}
-			*/
 
 			if(line_split[0] == "TRANSACTION"){
 				found := false
@@ -166,7 +165,6 @@ func addRemote(node_name string, ip_address string, port_number string){
 		remotehost := <-introduce_chan
 
 		if _, ok := send_map[remotehost]; ok {
-			fmt.Println("Redundant connection")
 			continue;
 		}
 
@@ -176,7 +174,6 @@ func addRemote(node_name string, ip_address string, port_number string){
 			fmt.Println("Failed while dialing the remote node " + remotehost)
 		}
 		send_map[remotehost] = remote_connection
-		send_map_key = append(send_map_key, remotehost)
 		defer remote_connection.Close()
 		go readMessage(remote_connection)
 		remote_connection.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
@@ -206,7 +203,6 @@ func start_server(port_num string) {
 		conn, _ := tcp_listen.AcceptTCP()
 		defer conn.Close()
 		read_map[conn.RemoteAddr().String()] = conn
-
 
 		go readMessage(conn)
 	}
