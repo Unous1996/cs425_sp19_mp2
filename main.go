@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -25,8 +26,13 @@ var (
 )
 
 var (
-	read_map         map[string]*net.TCPConn
-	send_map         map[string]*net.TCPConn
+	read_map map[string]*net.TCPConn
+	send_map map[string]*net.TCPConn
+)
+
+var (
+	holdback_transaction []string
+	pointer int
 )
 
 func checkErr(err error) int {
@@ -41,8 +47,35 @@ func checkErr(err error) int {
 	return 1
 }
 
+func multicast_transaction(){
+
+	for {
+		if(len(holdback_transaction) == 0){
+			continue
+		}
+
+		b := []byte(holdback_transaction[pointer])
+
+		for _, conn := range send_map {
+			if conn.RemoteAddr().String() == localhost {
+				continue
+			}
+			conn.Write(b)
+		}
+
+		pointer = (pointer + 1) % len(holdback_transaction)
+		time.Sleep(2 * time.Second)
+	}
+
+}
+
+func printTransaction(xaction string){
+	xaction_split := strings.Split(xaction, " ")
+	fmt.Println("XACT ID =", xaction_split[2])
+}
+
 func readMessage(conn *net.TCPConn){
-	fmt.Println("Begin read message")
+
 	buff := make([]byte, 256)
 	for {
 		j, err := conn.Read(buff)
@@ -55,13 +88,18 @@ func readMessage(conn *net.TCPConn){
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {
 			line_split := strings.Split(line, " ")
+			if(line_split[0] == "Acknowledged"){
+				fmt.Println("Received Acknowledged")
+			}
 			if(line_split[0] == "INTRODUCE"){
+				fmt.Println("INTRODUCE Received")
 				remotehost := line_split[2] + ":" + line_split[3]
 				introduce_chan <- remotehost
 			}
 
 			if(line_split[0] == "TRANSACTION"){
-				fmt.Println("Recevied an TRANSACTION")
+				printTransaction(line)
+				holdback_transaction = append(holdback_transaction, line)
 			}
 		}
 	}
@@ -70,12 +108,18 @@ func readMessage(conn *net.TCPConn){
 func addRemote(){
 	for {
 		remotehost := <-introduce_chan
+
+		if _, ok := send_map[remotehost]; ok {
+			continue;
+		}
+
 		tcp_add, _ := net.ResolveTCPAddr("tcp", remotehost)
 		remote_connection, err := net.DialTCP("tcp", nil, tcp_add)
 		if err != nil {
 			fmt.Println("Failed while dialing the remote node " + remotehost)
 		}
 		send_map[remotehost] = remote_connection
+		remote_connection.Write([]byte("Acknowledged"))
 		go readMessage(remote_connection)
 	}
 	close(introduce_chan)
@@ -96,6 +140,8 @@ func start_server(port_num string) {
 		conn, _ := tcp_listen.AcceptTCP()
 		defer conn.Close()
 		read_map[conn.RemoteAddr().String()] = conn
+
+
 		go readMessage(conn)
 	}
 }
@@ -165,6 +211,8 @@ func main(){
 		go readMessage(server_connection)
 		break
 	}
+
+	go multicast_transaction()
 
 	<-working_chan
 	fmt.Println("Shall not reach here")
