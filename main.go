@@ -170,7 +170,7 @@ func addRemote(node_name string, ip_address string, port_number string, send_map
 	close(introduce_chan)
 }
 
-func start_server(port_num string, localhost string, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string) {
+func start_server(port_num string, localhost string, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string){
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
