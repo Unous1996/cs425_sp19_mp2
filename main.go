@@ -22,7 +22,6 @@ var (
 )
 
 var (
-	working_chan chan bool
 	global_working_chan chan bool
 	holdback_transaction map[string][]string
 )
@@ -93,9 +92,9 @@ func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, goss
 	}
 }
 
-func printTransaction(xaction string){
+func printTransaction(port_num string, xaction string){
 	xaction_split := strings.Split(xaction, " ")
-	fmt.Println("XACT ID =", xaction_split[2])
+	fmt.Println(port_num + " " + xaction_split[2])
 }
 
 func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string){
@@ -139,7 +138,7 @@ func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TC
 					continue
 				}
 
-				printTransaction(line)
+				printTransaction(port_num, line)
 				holdback_transaction[port_num] = append(holdback_transaction[port_num], line)
 				gossip_chan <- line
 			}
@@ -193,9 +192,7 @@ func node(nodename string, port_number string){
 	introduce_chan := make(chan string)
 	gossip_chan := make(chan string)
 	working_chan := make(chan string)
-	
-	self_nodename := os.Args[1]
-	self_server_port_number := os.Args[2]
+
 	//Get local ip address
 	addrs, err := net.InterfaceAddrs()
 
@@ -213,13 +210,13 @@ func node(nodename string, port_number string){
 		}
 	}
 
-	localhost := local_ip_address + ":" + self_server_port_number
-	connect_message := "CONNECT " + self_nodename + " " + local_ip_address + " " + self_server_port_number + "\n"
+	localhost := local_ip_address + ":" + port_number
+	connect_message := "CONNECT " + nodename + " " + local_ip_address + " " + port_number + "\n"
 	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
-	go start_server(self_server_port_number, localhost, send_map, gossip_chan, introduce_chan)
-	go addRemote(self_nodename, local_ip_address, self_server_port_number, send_map, gossip_chan, introduce_chan)
+	go start_server(port_number, localhost, send_map, gossip_chan, introduce_chan)
+	go addRemote(nodename, local_ip_address, port_number, send_map, gossip_chan, introduce_chan)
 
 	//Connect to server
 	serverhost = server_address + ":" + server_portnumber
