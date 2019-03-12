@@ -23,18 +23,8 @@ var (
 
 var (
 	working_chan chan bool
-	introduce_chan chan string
-	gossip_chan chan string
-)
-
-var (
-	read_map map[string]*net.TCPConn
-	send_map map[string]*net.TCPConn
-)
-
-var (
-	holdback_transaction []string
-	pointer int
+	global_working_chan chan bool
+	holdback_transaction map[string][]string
 )
 
 func checkErr(err error) int {
@@ -80,7 +70,7 @@ func generateRandom(upper_bound int, num int) [] int{
 	return result
 }
 
-func gossip_transaction(localhost string){
+func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, gossip_chan chan string){
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
@@ -108,7 +98,7 @@ func printTransaction(xaction string){
 	fmt.Println("XACT ID =", xaction_split[2])
 }
 
-func readMessage(conn *net.TCPConn){
+func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string){
 
 	buff := make([]byte, 256)
 	for {
@@ -138,8 +128,8 @@ func readMessage(conn *net.TCPConn){
 
 			if(line_split[0] == "TRANSACTION"){
 				found := false
-				for _, value := range holdback_transaction {
-					if line == value{
+				for _, value := range holdback_transaction[port_num] {
+					if line == value {
 						found = true
 						break
 					}
@@ -150,7 +140,7 @@ func readMessage(conn *net.TCPConn){
 				}
 
 				printTransaction(line)
-				holdback_transaction = append(holdback_transaction, line)
+				holdback_transaction[port_num] = append(holdback_transaction[port_num], line)
 				gossip_chan <- line
 			}
 
@@ -158,7 +148,7 @@ func readMessage(conn *net.TCPConn){
 	}
 }
 
-func addRemote(node_name string, ip_address string, port_number string){
+func addRemote(node_name string, ip_address string, port_number string, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string){
 	for {
 		remotehost := <-introduce_chan
 
@@ -168,26 +158,20 @@ func addRemote(node_name string, ip_address string, port_number string){
 
 		tcp_add, _ := net.ResolveTCPAddr("tcp", remotehost)
 		remote_connection, err := net.DialTCP("tcp", nil, tcp_add)
+
 		if err != nil {
 			fmt.Println("Failed while dialing the remote node " + remotehost)
 		}
+
 		send_map[remotehost] = remote_connection
 		defer remote_connection.Close()
-		go readMessage(remote_connection)
+		go readMessage(port_number, remote_connection, send_map, gossip_chan, introduce_chan)
 		remote_connection.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
 	}
 	close(introduce_chan)
 }
 
-/*
-func readdRemote(){
-	remotehost := <- reintroduce_chan
-
-}
-*/
-
-func start_server(port_num string, localhost string) {
-
+func start_server(port_num string, localhost string, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string) {
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
@@ -200,35 +184,16 @@ func start_server(port_num string, localhost string) {
 	for {
 		conn, _ := tcp_listen.AcceptTCP()
 		defer conn.Close()
-		read_map[conn.RemoteAddr().String()] = conn
-
-		go readMessage(conn)
+		go readMessage(port_num, conn, send_map, gossip_chan, introduce_chan)
 	}
 }
 
-func global_map_init(){
-	read_map = make(map[string]*net.TCPConn)
-	send_map = make(map[string]*net.TCPConn)
-}
-
-func channel_init(){
-	introduce_chan = make(chan string)
-	gossip_chan = make(chan string)
-}
-
-func main_init(){
-	global_map_init()
-	channel_init()
-}
-
-func main(){
-	if len(os.Args) != 3 {
-		fmt.Println(os.Stderr, "Incorrect number of parameters")
-		os.Exit(1)
-	}
-
-	main_init()
-
+func node(nodename string, port_number string){
+	send_map := make(map[string]*net.TCPConn)
+	introduce_chan := make(chan string)
+	gossip_chan := make(chan string)
+	working_chan := make(chan string)
+	
 	self_nodename := os.Args[1]
 	self_server_port_number := os.Args[2]
 	//Get local ip address
@@ -253,8 +218,8 @@ func main(){
 	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
-	go start_server(self_server_port_number, localhost)
-	go addRemote(self_nodename, local_ip_address, self_server_port_number)
+	go start_server(self_server_port_number, localhost, send_map, gossip_chan, introduce_chan)
+	go addRemote(self_nodename, local_ip_address, self_server_port_number, send_map, gossip_chan, introduce_chan)
 
 	//Connect to server
 	serverhost = server_address + ":" + server_portnumber
@@ -268,13 +233,30 @@ func main(){
 
 		defer server_connection.Close()
 		server_connection.Write(connect_message_byte)
-		read_map[serverhost] = server_connection
-		go readMessage(server_connection)
+		go readMessage(port_number, server_connection, send_map, gossip_chan, introduce_chan)
 		break
 	}
 
-	go gossip_transaction(localhost)
+	go gossip_transaction(localhost, send_map, gossip_chan)
 
 	<-working_chan
+	fmt.Println("Shall not reach here")
+}
+
+func main(){
+	if len(os.Args) %2 != 1 {
+		fmt.Println(os.Stderr, "Incorrect number of parameters")
+		os.Exit(1)
+	}
+
+	holdback_transaction = make(map[string][]string)
+
+	for i := 0; i < len(os.Args) / 2; i++{
+		port_number := os.Args[2*i+2]
+		holdback_transaction[port_number] = []string{}
+		go node(os.Args[2*i+1], port_number)
+	}
+
+	<-global_working_chan
 	fmt.Println("Shall not reach here")
 }
