@@ -11,7 +11,6 @@ import (
 
 var (
 	local_ip_address string
-	localhost string
 )
 
 var (
@@ -81,8 +80,7 @@ func generateRandom(upper_bound int, num int) [] int{
 	return result
 }
 
-func gossip_transaction(){
-
+func gossip_transaction(localhost string){
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
@@ -188,7 +186,7 @@ func readdRemote(){
 }
 */
 
-func start_server(port_num string) {
+func start_server(port_num string, localhost string) {
 
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
@@ -250,12 +248,12 @@ func main(){
 		}
 	}
 
-	localhost = local_ip_address + ":" + self_server_port_number
+	localhost := local_ip_address + ":" + self_server_port_number
 	connect_message := "CONNECT " + self_nodename + " " + local_ip_address + " " + self_server_port_number + "\n"
 	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
-	go start_server(self_server_port_number)
+	go start_server(self_server_port_number, localhost)
 	go addRemote(self_nodename, local_ip_address, self_server_port_number)
 
 	//Connect to server
@@ -275,7 +273,7 @@ func main(){
 		break
 	}
 
-	go gossip_transaction()
+	go gossip_transaction(localhost)
 
 	<-working_chan
 	fmt.Println("Shall not reach here")
