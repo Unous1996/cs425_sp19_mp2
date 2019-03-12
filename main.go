@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	"math/rand"
+	"encoding/csv"
 )
 
 var (
@@ -24,6 +25,8 @@ var (
 var (
 	global_working_chan chan bool
 	holdback_transaction map[string][]string
+	program_start_time string
+	writer *csv.Writer
 )
 
 func checkErr(err error) int {
@@ -95,6 +98,8 @@ func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, goss
 func printTransaction(port_num string, xaction string){
 	xaction_split := strings.Split(xaction, " ")
 	fmt.Println(port_num + " " + xaction_split[2])
+	writer.Write([]string{port_num,xaction_split[2]})
+	writer.Flush()
 }
 
 func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string){
@@ -246,12 +251,33 @@ func main(){
 		os.Exit(1)
 	}
 
-	holdback_transaction = make(map[string][]string)
+	if _, err := os.Stat("logs"); os.IsNotExist(err) {
+		os.MkdirAll("logs", os.ModePerm)
+	} 
 
-	for i := 0; i < len(os.Args) / 2; i++{
+	program_start_time = time.Now().String()
+	holdback_transaction = make(map[string][]string)
+	//output_files = make(map[string]*File)
+
+	file_name := program_start_time + ".csv"
+	file, err := os.Create(file_name)
+	
+	if err != nil {
+		panic(err)
+	}
+
+	writer = csv.NewWriter(file)
+	writer.Write([]string{"Port Number","Transaction ID"})
+	writer.Flush()
+
+	defer file.Close()
+
+	for i := 0; i < len(os.Args) / 2; i++ {
+		node_name := os.Args[2*i+1]
 		port_number := os.Args[2*i+2]
 		holdback_transaction[port_number] = []string{}
-		go node(os.Args[2*i+1], port_number)
+
+		go node(node_name, port_number)
 	}
 
 	<-global_working_chan
