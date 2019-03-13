@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 	"math/rand"
 	"encoding/csv"
@@ -29,9 +31,12 @@ var (
 	holdback_transaction map[string][]string
 	holdback_transaction_mutex = sync.RWMutex{}
 	program_start_time string
-	writer *csv.Writer
-	file *os.File
 	write_to_file bool
+)
+
+var(
+	cleanup_chan chan os.Signal
+	thanos_chan chan bool
 )
 
 func checkErr(err error) int {
@@ -78,10 +83,13 @@ func generateRandom(upper_bound int, num int) [] int{
 }
 
 func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex,  gossip_chan chan string){
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
+		send_map_mutex.RLock()
 		receivers := generateRandom(len(send_map) , gossip_fanout)
+		send_map_mutex.RUnlock()
 		count := 0
 
 		send_map_mutex.RLock()
@@ -105,26 +113,33 @@ func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, send
 	}
 }
 
-func printTransaction(port_num string, xaction string){
+func printTransaction(port_num string, xaction string) string {
 	xaction_split := strings.Split(xaction, " ")
-	fmt.Println(port_num + " " + xaction_split[2])
-	if(write_to_file){
-		writer.Write([]string{port_num,xaction_split[2]})
-		writer.Flush()
-	}
+	
+	time_string := xaction_split[1]
+	time_float,_ := strconv.ParseFloat(time_string,64)
+	currt := time.Now()
+	current_float := float64(currt.UTC().UnixNano()) / 1000.0 / 1000.0 / 1000.0
+	time_difference := current_float - time_float
+	time_difference_string := fmt.Sprintf("%f", time_difference)
+	return_string := port_num + " " + xaction_split[2] + " " + time_difference_string
+	fmt.Println(return_string)
+	return return_string
 }
 
 func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex, gossip_chan chan string, introduce_chan chan string){
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	buff := make([]byte, 256)
 	for {
 		j, err := conn.Read(buff)
 		flag := checkErr(err)
 		if flag == 0 {
 			failed_remote := conn.RemoteAddr().String()
+			/*
 			if(len(strings.Split(failed_remote,":")[1]) != 5) {
 				fmt.Println(" The node with remote address " + failed_remote + "had failed")
 			}
-
+			*/
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
 			send_map_mutex.Unlock()
@@ -142,15 +157,16 @@ func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TC
 			}
 
 			if(line_split[0] == "DIE" || line_split[0] == "QUIT"){
-				os.Exit(1)
+				thanos_chan <- true
 			}
 
-			if(line_split[0] == "TRANSACTION"){
+			if(line_split[0] == "TRANSACTION" && len(line_split) == 6){
 				found := false
 				holdback_transaction_mutex.RLock()
-				for _, value := range holdback_transaction[port_num] {
+				for _, stored_transaction := range holdback_transaction[port_num] {
 					holdback_transaction_mutex.RUnlock()
-					if line == value {
+					stored_transaction_split := strings.Split(stored_transaction, " ")
+					if line_split[2] == stored_transaction_split[1] {
 						found = true
 						holdback_transaction_mutex.RLock()
 						break
@@ -163,19 +179,19 @@ func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TC
 					continue
 				}
 
-				printTransaction(port_num, line)
+				holdback_message := printTransaction(port_num, line)
 				holdback_transaction_mutex.Lock()
-				holdback_transaction[port_num] = append(holdback_transaction[port_num], line)
+				fmt.Println("holdback_message = ", holdback_message)
+				holdback_transaction[port_num] = append(holdback_transaction[port_num], holdback_message)
 				holdback_transaction_mutex.Unlock()
 				gossip_chan <- line
-				
 			}
-			
 		}
 	}
 }
 
 func addRemote(node_name string, ip_address string, port_number string, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex, gossip_chan chan string, introduce_chan chan string){
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	for {
 		remotehost := <-introduce_chan
 
@@ -206,6 +222,7 @@ func addRemote(node_name string, ip_address string, port_number string, send_map
 }
 
 func start_server(port_num string, localhost string, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex,gossip_chan chan string, introduce_chan chan string){
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
@@ -227,11 +244,12 @@ func start_server(port_num string, localhost string, send_map map[string]*net.TC
 }
 
 func node(nodename string, port_number string){
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	send_map := make(map[string]*net.TCPConn)
 	send_map_mutex := sync.RWMutex{}
 	introduce_chan := make(chan string)
 	gossip_chan := make(chan string)
-	working_chan := make(chan string)
+	working_chan := make(chan bool)
 
 	//Get local ip address
 	addrs, err := net.InterfaceAddrs()
@@ -263,7 +281,8 @@ func node(nodename string, port_number string){
 		server_connection, err := net.DialTCP("tcp", nil, tcp_add)
 		if err != nil {
 			fmt.Println("#Failed to connect to the server")
-			continue
+			working_chan <- true
+			break
 		}
 
 		defer server_connection.Close()
@@ -278,8 +297,48 @@ func node(nodename string, port_number string){
 	fmt.Println("Shall not reach here")
 }
 
+func signal_handler(){
+	select {
+		case <- cleanup_chan:
+		case <- thanos_chan:
+	}
+
+	fmt.Println("Experment Ended, logging files")
+	fmt.Println(len(holdback_transaction))
+	if(write_to_file){
+		file_name := "logs/" + program_start_time + ".csv"
+		file, err := os.Create(file_name)
+		if err != nil {
+			fmt.Println("Error while creating file")
+		}
+		defer file.Close()
+
+		writer := csv.NewWriter(file)
+		fmt.Println("created file")
+		writer.Write([]string{"Port Number","Transaction ID", "Latency"})
+		for port_num, xaction_list := range holdback_transaction{
+			for _, xaction := range xaction_list{
+				xaction_split := strings.Split(xaction, " ")
+				writer.Write([]string{port_num, xaction_split[1], xaction_split[2]})
+			}
+		}
+		writer.Flush()
+	}
+	global_working_chan <- true
+}
+
 func main(){
-	
+
+	cleanup_chan = make(chan os.Signal)
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
+	global_working_chan = make(chan bool)
+	thanos_chan = make(chan bool)
+
+	file_name := "logs/" + program_start_time + ".csv"
+	os.Create(file_name)
+
+	go signal_handler()
+
 	if _, err := os.Stat("logs"); os.IsNotExist(err) {
 		os.MkdirAll("logs", os.ModePerm)
 	} 
@@ -293,19 +352,6 @@ func main(){
 	program_start_time = time.Now().String()
 
 	holdback_transaction = make(map[string][]string)
-	
-	//output_files = make(map[string]*File)
-
-	if(write_to_file){
-		file_name := "logs/" + program_start_time + ".csv"
-		file, _ = os.Create(file_name)
-
-		writer = csv.NewWriter(file)
-		writer.Write([]string{"Port Number","Transaction ID"})
-		writer.Flush()
-	}
-
-	defer file.Close()
 
 	if(os.Args[1] == "quick"){
 		base_name := os.Args[2]
@@ -317,13 +363,11 @@ func main(){
 			node_name := base_name + strconv.Itoa(i)
 			base_port_integer, _ := strconv.Atoi(base_port)
 			port_number := strconv.Itoa(base_port_integer + i)
-			fmt.Println("node_name = ", node_name)
-			fmt.Println("port_number = ", port_number)
 
 			holdback_transaction_mutex.Lock()
 			holdback_transaction[port_number] = []string{}
 			holdback_transaction_mutex.Unlock()
-
+			time.Sleep(1*time.Second)
 			go node(node_name, port_number)
 		}
 	} else {
@@ -333,11 +377,11 @@ func main(){
 			holdback_transaction_mutex.Lock()
 			holdback_transaction[port_number] = []string{}
 			holdback_transaction_mutex.Unlock()
-
+			time.Sleep(1*time.Second)
 			go node(node_name, port_number)
 		}
 	}
 
 	<-global_working_chan
-	fmt.Println("Shall not reach here")
+	fmt.Println("Exiting..")
 }
