@@ -30,6 +30,8 @@ var (
 	holdback_transaction_mutex = sync.RWMutex{}
 	program_start_time string
 	writer *csv.Writer
+	file *os.File
+	write_to_file bool
 )
 
 func checkErr(err error) int {
@@ -106,8 +108,10 @@ func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, send
 func printTransaction(port_num string, xaction string){
 	xaction_split := strings.Split(xaction, " ")
 	fmt.Println(port_num + " " + xaction_split[2])
-	writer.Write([]string{port_num,xaction_split[2]})
-	writer.Flush()
+	if(write_to_file){
+		writer.Write([]string{port_num,xaction_split[2]})
+		writer.Flush()
+	}
 }
 
 func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex, gossip_chan chan string, introduce_chan chan string){
@@ -280,22 +284,26 @@ func main(){
 		os.MkdirAll("logs", os.ModePerm)
 	} 
 
+	if os.Args[len(os.Args)-1] == "silent" {
+		write_to_file = false
+	} else {
+		write_to_file = true
+	}
+
 	program_start_time = time.Now().String()
 
 	holdback_transaction = make(map[string][]string)
 	
 	//output_files = make(map[string]*File)
 
-	file_name := "logs/" + program_start_time + ".csv"
-	file, err := os.Create(file_name)
-	
-	if err != nil {
-		panic(err)
-	}
+	if(write_to_file){
+		file_name := "logs/" + program_start_time + ".csv"
+		file, _ = os.Create(file_name)
 
-	writer = csv.NewWriter(file)
-	writer.Write([]string{"Port Number","Transaction ID"})
-	writer.Flush()
+		writer = csv.NewWriter(file)
+		writer.Write([]string{"Port Number","Transaction ID"})
+		writer.Flush()
+	}
 
 	defer file.Close()
 
