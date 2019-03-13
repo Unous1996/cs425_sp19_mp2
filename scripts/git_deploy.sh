@@ -44,7 +44,7 @@ echo ""
 
 else
 
-sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "cd /home/${netid}/mp2; git checkout , ;git clone https://github.com/Unous1996/cs425_sp19_mp2.git"
+sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "cd /home/${netid}/mp2; git checkout . ;git clone https://github.com/Unous1996/cs425_sp19_mp2.git"
 
 echo ""
 

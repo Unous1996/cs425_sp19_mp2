@@ -8,6 +8,8 @@ import (
 	"time"
 	"math/rand"
 	"encoding/csv"
+	"strconv"
+	"sync"
 )
 
 var (
@@ -25,6 +27,7 @@ var (
 var (
 	global_working_chan chan bool
 	holdback_transaction map[string][]string
+	holdback_transaction_mutex = sync.RWMutex{}
 	program_start_time string
 	writer *csv.Writer
 )
@@ -72,14 +75,16 @@ func generateRandom(upper_bound int, num int) [] int{
 	return result
 }
 
-func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, gossip_chan chan string){
+func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex,  gossip_chan chan string){
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
 		receivers := generateRandom(len(send_map) , gossip_fanout)
 		count := 0
 
+		send_map_mutex.RLock()
 		for _, conn := range send_map {
+			send_map_mutex.RUnlock()
 			found := false
 			for _, value := range receivers{
 				if(count == value){
@@ -88,10 +93,13 @@ func gossip_transaction(localhost string, send_map map[string]*net.TCPConn, goss
 				break
 			}
 			if (found == false  || conn.RemoteAddr().String() == localhost) {
+				send_map_mutex.RLock()
 				continue
 			}
 			conn.Write(b)
+			send_map_mutex.RLock()
 		}
+		send_map_mutex.RUnlock()
 	}
 }
 
@@ -102,19 +110,22 @@ func printTransaction(port_num string, xaction string){
 	writer.Flush()
 }
 
-func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string){
-
+func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex, gossip_chan chan string, introduce_chan chan string){
 	buff := make([]byte, 256)
 	for {
 		j, err := conn.Read(buff)
 		flag := checkErr(err)
 		if flag == 0 {
 			failed_remote := conn.RemoteAddr().String()
-			if(len(strings.Split(failed_remote,":")[1]) != 5){
+			if(len(strings.Split(failed_remote,":")[1]) != 5) {
 				fmt.Println(" The node with remote address " + failed_remote + "had failed")
 			}
+
+			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
+			send_map_mutex.Unlock()
 			break
+
 		}
 
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
@@ -132,50 +143,65 @@ func readMessage(port_num string, conn *net.TCPConn, send_map map[string]*net.TC
 
 			if(line_split[0] == "TRANSACTION"){
 				found := false
+				holdback_transaction_mutex.RLock()
 				for _, value := range holdback_transaction[port_num] {
+					holdback_transaction_mutex.RUnlock()
 					if line == value {
 						found = true
+						holdback_transaction_mutex.RLock()
 						break
 					}
+					holdback_transaction_mutex.RLock()
 				}
+				holdback_transaction_mutex.RUnlock()
 
-				if(found == true){
+				if(found == true) {
 					continue
 				}
 
 				printTransaction(port_num, line)
+				holdback_transaction_mutex.Lock()
 				holdback_transaction[port_num] = append(holdback_transaction[port_num], line)
+				holdback_transaction_mutex.Unlock()
 				gossip_chan <- line
+				
 			}
-
+			
 		}
 	}
 }
 
-func addRemote(node_name string, ip_address string, port_number string, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string){
+func addRemote(node_name string, ip_address string, port_number string, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex, gossip_chan chan string, introduce_chan chan string){
 	for {
 		remotehost := <-introduce_chan
 
+		send_map_mutex.RLock()
 		if _, ok := send_map[remotehost]; ok {
+			send_map_mutex.RUnlock()
 			continue;
 		}
+		send_map_mutex.RUnlock()
 
 		tcp_add, _ := net.ResolveTCPAddr("tcp", remotehost)
 		remote_connection, err := net.DialTCP("tcp", nil, tcp_add)
 
 		if err != nil {
 			fmt.Println("Failed while dialing the remote node " + remotehost)
+			continue
 		}
 
+		send_map_mutex.Lock()
 		send_map[remotehost] = remote_connection
+		send_map_mutex.Unlock()
+
 		defer remote_connection.Close()
-		go readMessage(port_number, remote_connection, send_map, gossip_chan, introduce_chan)
+		go readMessage(port_number, remote_connection, send_map, send_map_mutex, gossip_chan, introduce_chan)
 		remote_connection.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
 	}
 	close(introduce_chan)
 }
 
-func start_server(port_num string, localhost string, send_map map[string]*net.TCPConn, gossip_chan chan string, introduce_chan chan string){
+func start_server(port_num string, localhost string, send_map map[string]*net.TCPConn, send_map_mutex sync.RWMutex,gossip_chan chan string, introduce_chan chan string){
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
@@ -187,13 +213,18 @@ func start_server(port_num string, localhost string, send_map map[string]*net.TC
 	// Accept Tcp connection from other VMs
 	for {
 		conn, _ := tcp_listen.AcceptTCP()
+		if conn == nil{
+			continue
+		}
 		defer conn.Close()
-		go readMessage(port_num, conn, send_map, gossip_chan, introduce_chan)
+
+		go readMessage(port_num, conn, send_map, send_map_mutex, gossip_chan, introduce_chan)
 	}
 }
 
 func node(nodename string, port_number string){
 	send_map := make(map[string]*net.TCPConn)
+	send_map_mutex := sync.RWMutex{}
 	introduce_chan := make(chan string)
 	gossip_chan := make(chan string)
 	working_chan := make(chan string)
@@ -210,18 +241,16 @@ func node(nodename string, port_number string){
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				local_ip_address = ipnet.IP.String()
-				fmt.Println("#The local ip address is:", ipnet.IP.String())
 			}
 		}
 	}
 
 	localhost := local_ip_address + ":" + port_number
 	connect_message := "CONNECT " + nodename + " " + local_ip_address + " " + port_number + "\n"
-	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
-	go start_server(port_number, localhost, send_map, gossip_chan, introduce_chan)
-	go addRemote(nodename, local_ip_address, port_number, send_map, gossip_chan, introduce_chan)
+	go start_server(port_number, localhost, send_map, send_map_mutex, gossip_chan, introduce_chan)
+	go addRemote(nodename, local_ip_address, port_number, send_map, send_map_mutex, gossip_chan, introduce_chan)
 
 	//Connect to server
 	serverhost = server_address + ":" + server_portnumber
@@ -235,30 +264,26 @@ func node(nodename string, port_number string){
 
 		defer server_connection.Close()
 		server_connection.Write(connect_message_byte)
-		go readMessage(port_number, server_connection, send_map, gossip_chan, introduce_chan)
+		go readMessage(port_number, server_connection, send_map, send_map_mutex, gossip_chan, introduce_chan)
 		break
 	}
 
-	go gossip_transaction(localhost, send_map, gossip_chan)
+	go gossip_transaction(localhost, send_map, send_map_mutex, gossip_chan)
 
 	<-working_chan
 	fmt.Println("Shall not reach here")
 }
 
 func main(){
-	if len(os.Args) %2 != 1 {
-		fmt.Println(os.Stderr, "Incorrect number of parameters")
-		os.Exit(1)
-	}
-
+	
 	if _, err := os.Stat("logs"); os.IsNotExist(err) {
 		os.MkdirAll("logs", os.ModePerm)
 	} 
 
-
-
 	program_start_time = time.Now().String()
+
 	holdback_transaction = make(map[string][]string)
+	
 	//output_files = make(map[string]*File)
 
 	file_name := "logs/" + program_start_time + ".csv"
@@ -274,12 +299,35 @@ func main(){
 
 	defer file.Close()
 
-	for i := 0; i < len(os.Args) / 2; i++ {
-		node_name := os.Args[2*i+1]
-		port_number := os.Args[2*i+2]
-		holdback_transaction[port_number] = []string{}
+	if(os.Args[1] == "quick"){
+		base_name := os.Args[2]
+		base_port := os.Args[3]
+		quantity_string := os.Args[4]
+		quantity_integer, _ := strconv.Atoi(quantity_string)
 
-		go node(node_name, port_number)
+		for i := 0; i < quantity_integer; i++ {
+			node_name := base_name + strconv.Itoa(i)
+			base_port_integer, _ := strconv.Atoi(base_port)
+			port_number := strconv.Itoa(base_port_integer + i)
+			fmt.Println("node_name = ", node_name)
+			fmt.Println("port_number = ", port_number)
+
+			holdback_transaction_mutex.Lock()
+			holdback_transaction[port_number] = []string{}
+			holdback_transaction_mutex.Unlock()
+
+			go node(node_name, port_number)
+		}
+	} else {
+		for i := 0; i < len(os.Args) / 2; i++ {
+			node_name := os.Args[2*i+1]
+			port_number := os.Args[2*i+2]
+			holdback_transaction_mutex.Lock()
+			holdback_transaction[port_number] = []string{}
+			holdback_transaction_mutex.Unlock()
+
+			go node(node_name, port_number)
+		}
 	}
 
 	<-global_working_chan
