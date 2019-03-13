@@ -255,11 +255,13 @@ func main(){
 		os.MkdirAll("logs", os.ModePerm)
 	} 
 
+
+
 	program_start_time = time.Now().String()
 	holdback_transaction = make(map[string][]string)
 	//output_files = make(map[string]*File)
 
-	file_name := program_start_time + ".csv"
+	file_name := "logs/" + program_start_time + ".csv"
 	file, err := os.Create(file_name)
 	
 	if err != nil {
