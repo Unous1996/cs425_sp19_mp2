@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 	"math/rand"
 )
@@ -29,8 +30,8 @@ var (
 )
 
 var (
-	read_map map[string]*net.TCPConn
 	send_map map[string]*net.TCPConn
+	send_map_mutex = sync.RWMutex{}
 )
 
 var (
@@ -86,22 +87,30 @@ func gossip_transaction(){
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
+		send_map_mutex.RLock()
 		receivers := generateRandom(len(send_map) , gossip_fanout)
+		send_map_mutex.RUnlock()
 		count := 0
 
+		send_map_mutex.RLock()
 		for _, conn := range send_map {
+			send_map_mutex.RUnlock()
 			found := false
 			for _, value := range receivers{
 				if(count == value){
 					found = true
 				}
+				send_map_mutex.RLock()
 				break
 			}
 			if (found == false  || conn.RemoteAddr().String() == localhost) {
+				send_map_mutex.RLock()
 				continue
 			}
 			conn.Write(b)
+			send_map_mutex.RLock()
 		}
+		send_map_mutex.RUnlock()
 	}
 }
 
@@ -121,7 +130,9 @@ func readMessage(port_number string, conn *net.TCPConn){
 			if(len(strings.Split(failed_remote,":")[1]) != 5){
 				fmt.Println(" The node with remote address " + failed_remote + "had failed")
 			}
+			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
+			send_map_mutex.Unlock()
 			break
 		}
 
@@ -135,7 +146,7 @@ func readMessage(port_number string, conn *net.TCPConn){
 			}
 
 			if(line_split[0] == "DIE" || line_split[0] == "QUIT"){
-				os.Exit(1)
+				working_chan <- true
 			}
 
 			if(line_split[0] == "TRANSACTION"){
@@ -164,29 +175,40 @@ func addRemote(node_name string, ip_address string, port_number string){
 	for {
 		remotehost := <-introduce_chan
 
+		send_map_mutex.RLock()
 		if _, ok := send_map[remotehost]; ok {
+			send_map_mutex.RUnlock()
 			continue;
 		}
+		send_map_mutex.RUnlock()
 
 		tcp_add, _ := net.ResolveTCPAddr("tcp", remotehost)
 		remote_connection, err := net.DialTCP("tcp", nil, tcp_add)
 		if err != nil {
 			fmt.Println("Failed while dialing the remote node " + remotehost)
 		}
+
+		send_map_mutex.Lock()
 		send_map[remotehost] = remote_connection
+		send_map_mutex.Unlock()
 		defer remote_connection.Close()
 		go readMessage(port_number, remote_connection)
-		remote_connection.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
+
+		send_map_mutex.RLock()
+		for _, conn := range send_map{
+			send_map_mutex.RUnlock()
+			if(conn.RemoteAddr().String() != localhost){
+				send_map_mutex.RLock()
+				continue
+			}
+			conn.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
+			send_map_mutex.RLock()
+		}
+		send_map_mutex.RUnlock()
+
 	}
 	close(introduce_chan)
 }
-
-/*
-func readdRemote(){
-	remotehost := <- reintroduce_chan
-
-}
-*/
 
 func start_server(port_num string) {
 
@@ -201,15 +223,16 @@ func start_server(port_num string) {
 	// Accept Tcp connection from other VMs
 	for {
 		conn, _ := tcp_listen.AcceptTCP()
+		if conn == nil{
+			continue
+		}
 		defer conn.Close()
-		read_map[conn.RemoteAddr().String()] = conn
 
-		go readMessage(conn)
+		go readMessage(port_num, conn)
 	}
 }
 
 func global_map_init(){
-	read_map = make(map[string]*net.TCPConn)
 	send_map = make(map[string]*net.TCPConn)
 }
 
@@ -270,13 +293,12 @@ func main(){
 
 		defer server_connection.Close()
 		server_connection.Write(connect_message_byte)
-		read_map[serverhost] = server_connection
-		go readMessage(server_connection)
+		go readMessage(port_number, server_connection)
 		break
 	}
 
 	go gossip_transaction()
 
 	<-working_chan
-	fmt.Println("Shall not reach here")
+	fmt.Println("Process ended")
 }
