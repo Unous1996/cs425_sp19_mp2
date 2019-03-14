@@ -1,9 +1,9 @@
 port=5000
 
-for i in 0
+for i in 0 1
 do
 	newport=`expr $port + $i`
-	./main node $newport 
+	./main node $newport &
 done
 
 

@@ -105,12 +105,12 @@ func gossip_transaction(){
 	}
 }
 
-func printTransaction(xaction string){
+func printTransaction(port_number string, xaction string){
 	xaction_split := strings.Split(xaction, " ")
-	fmt.Println("XACT ID =", xaction_split[2])
+	fmt.Println(port_number + " = " + xaction_split[2])
 }
 
-func readMessage(conn *net.TCPConn){
+func readMessage(port_number string, conn *net.TCPConn){
 
 	buff := make([]byte, 256)
 	for {
@@ -151,7 +151,7 @@ func readMessage(conn *net.TCPConn){
 					continue
 				}
 
-				printTransaction(line)
+				printTransaction(port_number, line)
 				holdback_transaction = append(holdback_transaction, line)
 				gossip_chan <- line
 			}
@@ -175,7 +175,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 		}
 		send_map[remotehost] = remote_connection
 		defer remote_connection.Close()
-		go readMessage(remote_connection)
+		go readMessage(port_number, remote_connection)
 		remote_connection.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
 	}
 	close(introduce_chan)
@@ -232,7 +232,7 @@ func main(){
 	main_init()
 
 	self_nodename := os.Args[1]
-	self_server_port_number := os.Args[2]
+	port_number := os.Args[2]
 	//Get local ip address
 	addrs, err := net.InterfaceAddrs()
 
@@ -250,13 +250,13 @@ func main(){
 		}
 	}
 
-	localhost = local_ip_address + ":" + self_server_port_number
-	connect_message := "CONNECT " + self_nodename + " " + local_ip_address + " " + self_server_port_number + "\n"
+	localhost = local_ip_address + ":" + port_number
+	connect_message := "CONNECT " + self_nodename + " " + local_ip_address + " " + port_number + "\n"
 	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
-	go start_server(self_server_port_number)
-	go addRemote(self_nodename, local_ip_address, self_server_port_number)
+	go start_server(port_number)
+	go addRemote(self_nodename, local_ip_address, port_number)
 
 	//Connect to server
 	serverhost = server_address + ":" + server_portnumber
