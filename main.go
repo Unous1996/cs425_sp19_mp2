@@ -252,11 +252,26 @@ func main(){
 		os.Exit(1)
 	}
 
+	if _, err := os.Stat("logs"); os.IsNotExist(err) {
+		os.MkdirAll("logs", os.ModePerm)
+	}
+
+	program_start_time = time.Now().String()
+	os.MkdirAll("logs/"+program_start_time, os.ModePerm)
+
+
 	main_init()
 
 	self_nodename := os.Args[1]
 	port_number := os.Args[2]
 	//Get local ip address
+	file_name := "logs/" + program_start_time + "/" + port_number + ".csv"
+	file, _ = os.Create(file_name)
+
+	writer = csv.NewWriter(file)
+	writer.Write([]string{"Port Number","Transaction ID"})
+	writer.Flush()
+	
 	addrs, err := net.InterfaceAddrs()
 
 	if err != nil {
@@ -300,5 +315,6 @@ func main(){
 	go gossip_transaction()
 
 	<-working_chan
+
 	fmt.Println("Process ended")
 }
