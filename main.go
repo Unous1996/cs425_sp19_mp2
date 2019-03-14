@@ -269,7 +269,7 @@ func main(){
 	file, _ = os.Create(file_name)
 
 	writer = csv.NewWriter(file)
-	writer.Write([]string{"Port Number","Transaction ID"})
+	writer.Write([]string{"Port Number","Transaction ID", "Latency")
 	writer.Flush()
 	
 	addrs, err := net.InterfaceAddrs()
@@ -315,6 +315,8 @@ func main(){
 	go gossip_transaction()
 
 	<-working_chan
+	fmt.Println("Process ended. Begin writing to files")
+	for _, transaction := range holdback_transaction:
+		transaction_split = string.Split(transaction_split, " ")
 
-	fmt.Println("Process ended")
 }
