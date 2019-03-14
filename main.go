@@ -8,6 +8,10 @@ import (
 	"sync"
 	"time"
 	"math/rand"
+	"os/signal"
+	"syscall"
+	"strconv"
+	"encoding/csv"
 )
 
 var (
@@ -27,6 +31,8 @@ var (
 	working_chan chan bool
 	introduce_chan chan string
 	gossip_chan chan string
+	cleanup_chan chan os.Signal
+	program_start_time string
 )
 
 var (
@@ -83,7 +89,7 @@ func generateRandom(upper_bound int, num int) [] int{
 }
 
 func gossip_transaction(){
-
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
@@ -114,13 +120,21 @@ func gossip_transaction(){
 	}
 }
 
-func printTransaction(port_number string, xaction string){
-	xaction_split := strings.Split(xaction, " ")
-	fmt.Println(port_number + " = " + xaction_split[2])
+func printTransaction(port_num string, xaction string) string{
+	xaction_split := strings.Split(xaction, " ")	
+	time_string := xaction_split[1]
+	time_float,_ := strconv.ParseFloat(time_string,64)
+	currt := time.Now()
+	current_float := float64(currt.UTC().UnixNano()) / 1000.0 / 1000.0 / 1000.0
+	time_difference := current_float - time_float
+	time_difference_string := fmt.Sprintf("%f", time_difference)
+	return_string := port_num + " " + xaction_split[2] + " " + time_difference_string
+	fmt.Println(return_string)
+	return return_string
 }
 
 func readMessage(port_number string, conn *net.TCPConn){
-
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	buff := make([]byte, 256)
 	for {
 		j, err := conn.Read(buff)
@@ -162,16 +176,16 @@ func readMessage(port_number string, conn *net.TCPConn){
 					continue
 				}
 
-				printTransaction(port_number, line)
-				holdback_transaction = append(holdback_transaction, line)
+				holdback_message := printTransaction(port_number, line)
+				holdback_transaction = append(holdback_transaction, holdback_message)
 				gossip_chan <- line
 			}
-
 		}
 	}
 }
 
 func addRemote(node_name string, ip_address string, port_number string){
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	for {
 		remotehost := <-introduce_chan
 
@@ -211,7 +225,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 }
 
 func start_server(port_num string) {
-
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
@@ -239,6 +253,7 @@ func global_map_init(){
 func channel_init(){
 	introduce_chan = make(chan string)
 	gossip_chan = make(chan string)
+	cleanup_chan = make(chan os.Signal)
 }
 
 func main_init(){
@@ -246,7 +261,15 @@ func main_init(){
 	channel_init()
 }
 
+func signal_handler(){
+	fmt.Println("signal_handler invoked")
+	working_chan <- true
+}
+
+
 func main(){
+	main_init()
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	if len(os.Args) != 3 {
 		fmt.Println(os.Stderr, "Incorrect number of parameters")
 		os.Exit(1)
@@ -260,16 +283,16 @@ func main(){
 	os.MkdirAll("logs/"+program_start_time, os.ModePerm)
 
 
-	main_init()
+
 
 	self_nodename := os.Args[1]
 	port_number := os.Args[2]
 	//Get local ip address
 	file_name := "logs/" + program_start_time + "/" + port_number + ".csv"
-	file, _ = os.Create(file_name)
+	file, _ := os.Create(file_name)
 
-	writer = csv.NewWriter(file)
-	writer.Write([]string{"Port Number","Transaction ID", "Latency")
+	writer := csv.NewWriter(file)
+	writer.Write([]string{"Port Number","Transaction ID", "Latency"})
 	writer.Flush()
 	
 	addrs, err := net.InterfaceAddrs()
@@ -316,7 +339,9 @@ func main(){
 
 	<-working_chan
 	fmt.Println("Process ended. Begin writing to files")
-	for _, transaction := range holdback_transaction:
-		transaction_split = string.Split(transaction_split, " ")
-
+	for _, transaction := range holdback_transaction {
+		transaction_split := strings.Split(transaction, " ")
+		writer.Write([]string{port_number,transaction_split[1],transaction_split[2]})
+	}
+	writer.Flush()
 }
