@@ -331,16 +331,20 @@ func main(){
 	//Get local ip address
 	
 	file_name := "logs/" + os.Args[3] + "/latency/" + port_number + ".csv" 
-	file, errf := os.Create(file_name)
+	file, _ := os.Create(file_name)
+	/*
 	if errf != nil{
 		panic("error while creating latency file")	
 	}
+	*/
 	bandwidth_file_name := "logs/" + os.Args[3] + "/bandwidth/" + port_number + ".csv"
-	bandwidth_file, errb:= os.Create(bandwidth_file_name)
+	bandwidth_file, _ := os.Create(bandwidth_file_name)
 
+	/*
 	if errb != nil{
 		panic("error while creating bandwidth file")	
 	}
+	*/
 
 	writer := csv.NewWriter(file)
 	writer.Write([]string{"Port Number","Transaction ID", "Latency"})
