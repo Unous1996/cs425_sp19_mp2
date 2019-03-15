@@ -121,6 +121,7 @@ func gossip_transaction(){
 	}
 }
 
+
 func printTransaction(port_num string, xaction string) string{
 	xaction_split := strings.Split(xaction, " ")	
 	time_string := xaction_split[1]
@@ -145,10 +146,11 @@ func readMessage(port_number string, conn *net.TCPConn){
 			if(failed_remote == serverhost){
 				working_chan <- true
 			}
-			
+			/*
 			if(len(strings.Split(failed_remote,":")[1]) != 5){
 				fmt.Println(" The node with remote address " + failed_remote + "had failed")
 			}
+			*/
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
 			send_map_mutex.Unlock()
@@ -218,7 +220,6 @@ func addRemote(node_name string, ip_address string, port_number string){
 			continue		
 		}
 		
-
 		send_map_mutex.Lock()		
 		send_map[remotehost] = remote_connection
 		send_map_mutex.Unlock()
@@ -229,7 +230,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 		send_map_mutex.RLock()
 		for _, conn := range send_map{
 			send_map_mutex.RUnlock()
-			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line)
+			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			bandwidth_map[time.Since(program_start_time).String()] =  len(send_message)
 			conn.Write(send_message)
 			send_map_mutex.RLock()
@@ -238,6 +239,21 @@ func addRemote(node_name string, ip_address string, port_number string){
 	}
 	close(introduce_chan)
 }
+
+func self_introduction(){
+	time.Sleep(1*time.Second)
+	send_map_mutex.RLock()
+	for _, conn := range send_map{
+		for  remotehost, _ := range send_map{
+			ip_address := strings.Split(remotehost, ":")[0]
+ 			port_number := strings.Split(remotehost, ":")[1]
+			send_message := []byte("INTRODUCE " + "node_name" + " " + ip_address + " " + port_number + "\n") 
+			conn.Write(send_message)
+		}	
+	}
+	send_map_mutex.RUnlock()
+}
+
 
 func start_server(port_num string) {
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
@@ -356,10 +372,11 @@ func main(){
 		break
 	}
 
+	go self_introduction()
 	go gossip_transaction()
 
 	<-working_chan
-	fmt.Println("send_map_length = ", len(send_map))
+	fmt.Printf("port_number = %d, send_map_length = %d\n",port_number,len(send_map))
 	for _, transaction := range holdback_transaction {
 		transaction_split := strings.Split(transaction, " ")
 		writer.Write([]string{port_number,transaction_split[1],transaction_split[2]})
