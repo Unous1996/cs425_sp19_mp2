@@ -23,7 +23,7 @@ var (
 	//server_address = "10.192.137.227"
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
-	gossip_fanout = 3
+	gossip_fanout = 10
 	serverhost string
 )
 
@@ -32,11 +32,12 @@ var (
 	introduce_chan chan string
 	gossip_chan chan string
 	cleanup_chan chan os.Signal
-	program_start_time string
+	program_start_time time.Time
 )
 
 var (
 	send_map map[string]*net.TCPConn
+	bandwidth_map map[string]int
 	send_map_mutex = sync.RWMutex{}
 )
 
@@ -113,7 +114,7 @@ func gossip_transaction(){
 				send_map_mutex.RLock()
 				continue
 			}
-			conn.Write(b)
+			bandwidth_map[time.Since(program_start_time).String()] += len(b) 
 			send_map_mutex.RLock()
 		}
 		send_map_mutex.RUnlock()
@@ -130,7 +131,7 @@ func printTransaction(port_num string, xaction string) string{
 	time_difference_string := fmt.Sprintf("%f", time_difference)
 	return_string := port_num + " " + xaction_split[2] + " " + time_difference_string
 	fmt.Println(return_string)
-	return return_string
+	return return_string 
 }
 
 func readMessage(port_number string, conn *net.TCPConn){
@@ -142,10 +143,9 @@ func readMessage(port_number string, conn *net.TCPConn){
 		if flag == 0 {
 			failed_remote := conn.RemoteAddr().String()
 			if(failed_remote == serverhost){
-				fmt.Println("server failed")
 				working_chan <- true
 			}
-
+			
 			if(len(strings.Split(failed_remote,":")[1]) != 5){
 				fmt.Println(" The node with remote address " + failed_remote + "had failed")
 			}
@@ -160,8 +160,10 @@ func readMessage(port_number string, conn *net.TCPConn){
 			line_split := strings.Split(line, " ")
 		
 			if(line_split[0] == "INTRODUCE"){
-				remotehost := line_split[2] + ":" + line_split[3]
-				introduce_chan <- remotehost
+				if(len(line_split) != 4){
+					continue				
+				}
+				introduce_chan <- line
 			}
 
 			if(line_split[0] == "DIE" || line_split[0] == "QUIT"){
@@ -195,12 +197,14 @@ func readMessage(port_number string, conn *net.TCPConn){
 func addRemote(node_name string, ip_address string, port_number string){
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	for {
-		remotehost := <-introduce_chan
+		line := <-introduce_chan
+		line_split := strings.Split(line, " ")
+		remotehost := line_split[2] + ":" + line_split[3]
 
-		send_map_mutex.RLock()
+		send_map_mutex.RLock()		
 		if _, ok := send_map[remotehost]; ok {
 			send_map_mutex.RUnlock()
-			continue;
+			continue
 		}
 		send_map_mutex.RUnlock()
 
@@ -210,24 +214,27 @@ func addRemote(node_name string, ip_address string, port_number string){
 			fmt.Println("Failed while dialing the remote node " + remotehost)
 		}
 
-		send_map_mutex.Lock()
+		if remote_connection == nil {
+			continue		
+		}
+		
+
+		send_map_mutex.Lock()		
 		send_map[remotehost] = remote_connection
 		send_map_mutex.Unlock()
+
 		defer remote_connection.Close()
 		go readMessage(port_number, remote_connection)
 
 		send_map_mutex.RLock()
 		for _, conn := range send_map{
 			send_map_mutex.RUnlock()
-			if(conn.RemoteAddr().String() != localhost){
-				send_map_mutex.RLock()
-				continue
-			}
-			conn.Write([]byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number))
+			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line)
+			bandwidth_map[time.Since(program_start_time).String()] =  len(send_message)
+			conn.Write(send_message)
 			send_map_mutex.RLock()
 		}
 		send_map_mutex.RUnlock()
-
 	}
 	close(introduce_chan)
 }
@@ -256,6 +263,7 @@ func start_server(port_num string) {
 
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
+	bandwidth_map = make(map[string]int)
 }
 
 func channel_init(){
@@ -277,6 +285,7 @@ func signal_handler(){
 }
 
 func main(){
+	program_start_time = time.Now()
 	main_init()
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	if len(os.Args) != 4 {
@@ -289,13 +298,24 @@ func main(){
 	port_number := os.Args[2]
 	//Get local ip address
 	
-	file_name := "logs/" + os.Args[3] + "/" + port_number + ".csv"
-	file, _ := os.Create(file_name)
+	file_name := "logs/" + os.Args[3] + "/latency/" + port_number + ".csv" 
+	file, errf := os.Create(file_name)
+	if errf != nil{
+		panic("error while creating latency file")	
+	}
+	bandwidth_file_name := "logs/" + os.Args[3] + "/bandwidth/" + port_number + ".csv"
+	bandwidth_file, errb:= os.Create(bandwidth_file_name)
+
+	if errb != nil{
+		panic("error while creating bandwidth file")	
+	}
 
 	writer := csv.NewWriter(file)
 	writer.Write([]string{"Port Number","Transaction ID", "Latency"})
 	writer.Flush()
-	
+
+	bandwidth_writer := csv.NewWriter(bandwidth_file)
+	bandwidth_writer.Write([]string{"Port Number", "Time Since Start", "Bandwidth"})
 	
 	addrs, err := net.InterfaceAddrs()
 
@@ -308,14 +328,12 @@ func main(){
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				local_ip_address = ipnet.IP.String()
-				fmt.Println("#The local ip address is:", ipnet.IP.String())
 			}
 		}
 	}
 
 	localhost = local_ip_address + ":" + port_number
 	connect_message := "CONNECT " + self_nodename + " " + local_ip_address + " " + port_number + "\n"
-	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
 	go signal_handler()
@@ -341,12 +359,16 @@ func main(){
 	go gossip_transaction()
 
 	<-working_chan
-	fmt.Println("Process ended. Begin writing to files")
-	
+	fmt.Println("send_map_length = ", len(send_map))
 	for _, transaction := range holdback_transaction {
 		transaction_split := strings.Split(transaction, " ")
 		writer.Write([]string{port_number,transaction_split[1],transaction_split[2]})
 	}
 	writer.Flush()
-	
+
+	for time, bytes := range bandwidth_map{
+		str_bytes := strconv.Itoa(bytes)
+		bandwidth_writer.Write([]string{port_number,time,str_bytes})
+	}	
+	bandwidth_writer.Flush()
 }
