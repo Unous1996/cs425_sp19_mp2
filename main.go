@@ -141,6 +141,11 @@ func readMessage(port_number string, conn *net.TCPConn){
 		flag := checkErr(err)
 		if flag == 0 {
 			failed_remote := conn.RemoteAddr().String()
+			if(failed_remote == serverhost){
+				fmt.Println("server failed")
+				working_chan <- true
+			}
+
 			if(len(strings.Split(failed_remote,":")[1]) != 5){
 				fmt.Println(" The node with remote address " + failed_remote + "had failed")
 			}
@@ -164,6 +169,9 @@ func readMessage(port_number string, conn *net.TCPConn){
 			}
 
 			if(line_split[0] == "TRANSACTION"){
+				if(len(line_split) != 6){
+					continue
+				}
 				found := false
 				for _, value := range holdback_transaction {
 					if line == value{
@@ -253,6 +261,7 @@ func global_map_init(){
 func channel_init(){
 	introduce_chan = make(chan string)
 	gossip_chan = make(chan string)
+	working_chan = make(chan bool)
 	cleanup_chan = make(chan os.Signal)
 }
 
@@ -262,38 +271,31 @@ func main_init(){
 }
 
 func signal_handler(){
+	<-cleanup_chan
 	fmt.Println("signal_handler invoked")
 	working_chan <- true
 }
 
-
 func main(){
 	main_init()
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
-	if len(os.Args) != 3 {
+	if len(os.Args) != 4 {
 		fmt.Println(os.Stderr, "Incorrect number of parameters")
+		fmt.Println(len(os.Args))
 		os.Exit(1)
 	}
-
-	if _, err := os.Stat("logs"); os.IsNotExist(err) {
-		os.MkdirAll("logs", os.ModePerm)
-	}
-
-	program_start_time = time.Now().String()
-	os.MkdirAll("logs/"+program_start_time, os.ModePerm)
-
-
-
 
 	self_nodename := os.Args[1]
 	port_number := os.Args[2]
 	//Get local ip address
-	file_name := "logs/" + program_start_time + "/" + port_number + ".csv"
+	
+	file_name := "logs/" + os.Args[3] + "/" + port_number + ".csv"
 	file, _ := os.Create(file_name)
 
 	writer := csv.NewWriter(file)
 	writer.Write([]string{"Port Number","Transaction ID", "Latency"})
 	writer.Flush()
+	
 	
 	addrs, err := net.InterfaceAddrs()
 
@@ -316,6 +318,7 @@ func main(){
 	fmt.Println("connect_message = ", connect_message)
 	connect_message_byte := []byte(connect_message)
 
+	go signal_handler()
 	go start_server(port_number)
 	go addRemote(self_nodename, local_ip_address, port_number)
 
@@ -339,9 +342,11 @@ func main(){
 
 	<-working_chan
 	fmt.Println("Process ended. Begin writing to files")
+	
 	for _, transaction := range holdback_transaction {
 		transaction_split := strings.Split(transaction, " ")
 		writer.Write([]string{port_number,transaction_split[1],transaction_split[2]})
 	}
 	writer.Flush()
+	
 }
