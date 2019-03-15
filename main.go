@@ -131,11 +131,11 @@ func printTransaction(port_num string, xaction string) string{
 	time_difference := current_float - time_float
 	time_difference_string := fmt.Sprintf("%f", time_difference)
 	return_string := port_num + " " + xaction_split[2] + " " + time_difference_string
-	fmt.Println(return_string)
+	//fmt.Println(return_string)
 	return return_string 
 }
 
-func readMessage(port_number string, conn *net.TCPConn){
+func readMessage(node_name string, ip_address string, port_number string, conn *net.TCPConn){
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	buff := make([]byte, 256)
 	for {
@@ -146,17 +146,31 @@ func readMessage(port_number string, conn *net.TCPConn){
 			if(failed_remote == serverhost){
 				working_chan <- true
 			}
-			/*
+
 			if(len(strings.Split(failed_remote,":")[1]) != 5){
 				fmt.Println(" The node with remote address " + failed_remote + "had failed")
 			}
-			*/
+						
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
 			send_map_mutex.Unlock()
 			break
 		}
 
+		if (conn.RemoteAddr().String() != serverhost) {
+			send_map_mutex.RLock()		
+			_, ok := send_map[conn.RemoteAddr().String()]
+			send_map_mutex.RUnlock()
+		
+			if !ok {
+				send_map_mutex.Lock()		
+				send_map[conn.RemoteAddr().String()] = conn
+				send_map_mutex.Unlock()
+			}
+		}
+
+
+		
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {
 			line_split := strings.Split(line, " ")
@@ -191,6 +205,7 @@ func readMessage(port_number string, conn *net.TCPConn){
 				holdback_message := printTransaction(port_number, line)
 				holdback_transaction = append(holdback_transaction, holdback_message)
 				gossip_chan <- line
+				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
 		}
 	}
@@ -225,7 +240,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 		send_map_mutex.Unlock()
 
 		defer remote_connection.Close()
-		go readMessage(port_number, remote_connection)
+		go readMessage(node_name, ip_address, port_number, remote_connection)
 
 		send_map_mutex.RLock()
 		for _, conn := range send_map{
@@ -240,6 +255,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 	close(introduce_chan)
 }
 
+/*
 func self_introduction(){
 	time.Sleep(1*time.Second)
 	send_map_mutex.RLock()
@@ -253,9 +269,9 @@ func self_introduction(){
 	}
 	send_map_mutex.RUnlock()
 }
+*/
 
-
-func start_server(port_num string) {
+func start_server(node_name string, ip_address string, port_num string) {
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
 	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
@@ -273,7 +289,7 @@ func start_server(port_num string) {
 		}
 		defer conn.Close()
 
-		go readMessage(port_num, conn)
+		go readMessage(node_name, ip_address, port_num, conn)
 	}
 }
 
@@ -310,7 +326,7 @@ func main(){
 		os.Exit(1)
 	}
 
-	self_nodename := os.Args[1]
+	node_name := os.Args[1]
 	port_number := os.Args[2]
 	//Get local ip address
 	
@@ -349,12 +365,12 @@ func main(){
 	}
 
 	localhost = local_ip_address + ":" + port_number
-	connect_message := "CONNECT " + self_nodename + " " + local_ip_address + " " + port_number + "\n"
+	connect_message := "CONNECT " + node_name + " " + local_ip_address + " " + port_number + "\n"
 	connect_message_byte := []byte(connect_message)
 
 	go signal_handler()
-	go start_server(port_number)
-	go addRemote(self_nodename, local_ip_address, port_number)
+	go start_server(node_name, local_ip_address, port_number)
+	go addRemote(node_name, local_ip_address, port_number)
 
 	//Connect to server
 	serverhost = server_address + ":" + server_portnumber
@@ -368,11 +384,11 @@ func main(){
 
 		defer server_connection.Close()
 		server_connection.Write(connect_message_byte)
-		go readMessage(port_number, server_connection)
+		go readMessage(node_name, local_ip_address, port_number, server_connection)
 		break
 	}
 
-	go self_introduction()
+	//go self_introduction()
 	go gossip_transaction()
 
 	<-working_chan
