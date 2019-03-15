@@ -147,7 +147,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				working_chan <- true
 			}
 
-			if(len(strings.Split(failed_remote,":")[1]) != 5){
+			if(len(strings.Split(failed_remote,":")[1]) != 4){
 				fmt.Println(" The node with remote address " + failed_remote + "had failed")
 			}
 						
@@ -157,7 +157,12 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			break
 		}
 
-		if (conn.RemoteAddr().String() != serverhost) {
+		/*
+		remotehost := conn.RemoteAddr().String() 
+		remotehost_split := strings.Split(remotehost, ":")
+
+		
+		if (remotehost != serverhost && len(remotehost_split[1]) == 4) {
 			send_map_mutex.RLock()		
 			_, ok := send_map[conn.RemoteAddr().String()]
 			send_map_mutex.RUnlock()
@@ -168,8 +173,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				send_map_mutex.Unlock()
 			}
 		}
-
-
+		*/
+		
 		
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {
