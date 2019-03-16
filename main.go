@@ -156,21 +156,6 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			send_map_mutex.Unlock()
 			break
 		}
-
-		/*
-		if (conn.RemoteAddr().String() != serverhost) {
-			send_map_mutex.RLock()		
-			_, ok := send_map[conn.RemoteAddr().String()]
-			send_map_mutex.RUnlock()
-		
-			if !ok {
-				send_map_mutex.Lock()		
-				send_map[conn.RemoteAddr().String()] = conn
-				send_map_mutex.Unlock()
-			}
-		}
-		*/
-
 		
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {
@@ -205,6 +190,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				holdback_message := printTransaction(port_number, line)
 				holdback_transaction = append(holdback_transaction, holdback_message)
+				fmt.Println(port_number + "received")
 				gossip_chan <- line
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
