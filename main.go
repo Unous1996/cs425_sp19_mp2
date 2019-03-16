@@ -116,6 +116,7 @@ func gossip_transaction(){
 			}
 			bandwidth_map[time.Since(program_start_time).String()] += len(b) 
 			send_map_mutex.RLock()
+			conn.Write(b)
 		}
 		send_map_mutex.RUnlock()
 	}
@@ -131,7 +132,7 @@ func printTransaction(port_num string, xaction string) string{
 	time_difference := current_float - time_float
 	time_difference_string := fmt.Sprintf("%f", time_difference)
 	return_string := port_num + " " + xaction_split[2] + " " + time_difference_string
-	//fmt.Println(return_string)
+	fmt.Println(return_string)
 	return return_string 
 }
 
@@ -385,7 +386,7 @@ func main(){
 	go gossip_transaction()
 
 	<-working_chan
-	fmt.Printf("port_number = %d, send_map_length = %d\n",port_number,len(send_map))
+	fmt.Println("holdback queue length = ", len(holdback_transaction))
 	for _, transaction := range holdback_transaction {
 		transaction_split := strings.Split(transaction, " ")
 		writer.Write([]string{port_number,transaction_split[1],transaction_split[2]})
