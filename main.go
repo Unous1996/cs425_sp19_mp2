@@ -157,6 +157,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			break
 		}
 
+		/*
 		if (conn.RemoteAddr().String() != serverhost) {
 			send_map_mutex.RLock()		
 			_, ok := send_map[conn.RemoteAddr().String()]
@@ -168,7 +169,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				send_map_mutex.Unlock()
 			}
 		}
-
+		*/
 
 		
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
@@ -221,7 +222,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 		send_map_mutex.RLock()		
 		if _, ok := send_map[remotehost]; ok {
 			send_map_mutex.RUnlock()
-			continue
+			continue 
 		}
 		send_map_mutex.RUnlock()
 
@@ -332,11 +333,13 @@ func main(){
 	
 	file_name := "logs/" + os.Args[3] + "/latency/" + port_number + ".csv" 
 	file, _ := os.Create(file_name)
+
 	/*
 	if errf != nil{
 		panic("error while creating latency file")	
 	}
 	*/
+
 	bandwidth_file_name := "logs/" + os.Args[3] + "/bandwidth/" + port_number + ".csv"
 	bandwidth_file, _ := os.Create(bandwidth_file_name)
 
