@@ -279,20 +279,22 @@ func start_server(node_name string, ip_address string, port_num string) {
 			fmt.Println("#Failed to listen on " + port_num)
 			continue
 		}
+
+		fmt.Println("#Start listening on " + port_num)
+		// Accept Tcp connection from other VMs
+		for {
+			conn, _ := tcp_listen.AcceptTCP()
+			if conn == nil{
+				continue
+			}
+			defer conn.Close()
+
+			go readMessage(node_name, ip_address, port_num, conn)
+		}
+
 		break
 	}
 
-	fmt.Println("#Start listening on " + port_num)
-	// Accept Tcp connection from other VMs
-	for {
-		conn, _ := tcp_listen.AcceptTCP()
-		if conn == nil{
-			continue
-		}
-		defer conn.Close()
-
-		go readMessage(node_name, ip_address, port_num, conn)
-	}
 }
 
 func global_map_init(){
