@@ -24,6 +24,7 @@ var (
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 10
+	history = 1
 	serverhost string
 )
 
@@ -43,6 +44,7 @@ var (
 
 var (
 	holdback_transaction []string
+	holdback_transaction_print []string
 	pointer int
 )
 
@@ -131,9 +133,7 @@ func printTransaction(port_num string, xaction string) string{
 	current_float := float64(currt.UTC().UnixNano()) / 1000.0 / 1000.0 / 1000.0
 	time_difference := current_float - time_float
 	time_difference_string := fmt.Sprintf("%f", time_difference)
-	return_string := port_num + " " + xaction_split[2] + " " + time_difference_string
-	fmt.Println(return_string)
-	return return_string 
+	return time_difference_string
 }
 
 func readMessage(node_name string, ip_address string, port_number string, conn *net.TCPConn){
@@ -145,6 +145,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 		if flag == 0 {
 			failed_remote := conn.RemoteAddr().String()
 			if(failed_remote == serverhost){
+				fmt.Println("Server failed, aborting...")
 				working_chan <- true
 			}
 
@@ -189,10 +190,10 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					continue
 				}
 
-				holdback_message := printTransaction(port_number, line)
-				holdback_transaction = append(holdback_transaction, holdback_message)
+				time_difference := printTransaction(port_number, line)
+				holdback_transaction = append(holdback_transaction, line)
+				holdback_transaction_print = append(holdback_transaction_print, line + " " + time_difference)
 				fmt.Println(port_number + "received")
-				gossip_chan <- line
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
 		}
@@ -236,6 +237,14 @@ func addRemote(node_name string, ip_address string, port_number string){
 			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			bandwidth_map[time.Since(program_start_time).String()] =  len(send_message)
 			conn.Write(send_message)
+			for i := 0; i < history; i++ {
+				index := len(holdback_transaction) - (i+1)
+				if index < 0 {
+					break
+				}
+				send_message := []byte(holdback_transaction[index])
+				conn.Write(send_message)
+			}
 			send_map_mutex.RLock()
 		}
 		send_map_mutex.RUnlock()
@@ -319,23 +328,19 @@ func main(){
 	//Get local ip address
 	
 	file_name := "logs/" + os.Args[3] + "/latency/" + port_number + ".csv" 
-	file, _ := os.Create(file_name)
+	file, errf := os.Create(file_name)
 
-	/*
 	if errf != nil{
-		panic("error while creating latency file")	
+		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
-	*/
-
+	
 	bandwidth_file_name := "logs/" + os.Args[3] + "/bandwidth/" + port_number + ".csv"
-	bandwidth_file, _ := os.Create(bandwidth_file_name)
+	bandwidth_file, errb:= os.Create(bandwidth_file_name)
 
-	/*
 	if errb != nil{
-		panic("error while creating bandwidth file")	
+		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
-	*/
-
+	
 	writer := csv.NewWriter(file)
 	writer.Write([]string{"Port Number","Transaction ID", "Latency"})
 	writer.Flush()
@@ -386,10 +391,10 @@ func main(){
 	go gossip_transaction()
 
 	<-working_chan
-	fmt.Println("holdback queue length = ", len(holdback_transaction))
-	for _, transaction := range holdback_transaction {
+	fmt.Println("holdback queue length = ", len(holdback_transaction_print))
+	for _, transaction := range holdback_transaction_print {
 		transaction_split := strings.Split(transaction, " ")
-		writer.Write([]string{port_number,transaction_split[1],transaction_split[2]})
+		writer.Write([]string{port_number,transaction_split[2],transaction_split[6]})
 	}
 	writer.Flush()
 
