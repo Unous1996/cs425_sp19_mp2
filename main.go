@@ -242,6 +242,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 				if index < 0 {
 					break
 				}
+				fmt.Println9("sent a histroy message")
 				send_message := []byte(holdback_transaction[index])
 				conn.Write(send_message)
 			}
