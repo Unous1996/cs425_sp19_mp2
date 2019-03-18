@@ -270,11 +270,16 @@ func self_introduction(){
 
 func start_server(node_name string, ip_address string, port_num string) {
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
-	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
-	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
-	if err != nil {
-		fmt.Println("#Failed to listen on " + port_num)
+	for {
+		tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
+		tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
+			
+		if err != nil {
+			fmt.Println("#Failed to listen on " + port_num)
+			continue
+		}
+		break
 	}
 
 	fmt.Println("#Start listening on " + port_num)
