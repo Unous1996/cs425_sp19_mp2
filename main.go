@@ -38,7 +38,6 @@ var (
 
 var (
 	send_map map[string]*net.TCPConn
-	bandwidth_map map[string]int
 	send_map_mutex = sync.RWMutex{}
 )
 
@@ -116,9 +115,19 @@ func gossip_transaction(){
 				send_map_mutex.RLock()
 				continue
 			}
-			bandwidth_map[time.Since(program_start_time).String()] += len(b) 
+
 			send_map_mutex.RLock()
 			conn.Write(b)
+
+			for i := 0; i < history; i++ {
+				index := len(holdback_transaction) - (i+1)
+				if index < 0 {
+					break
+				}
+				fmt.Println("sent a histroy message")
+				send_message := []byte(holdback_transaction[index])
+				conn.Write(send_message)
+			}
 		}
 		send_map_mutex.RUnlock()
 	}
@@ -235,17 +244,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 		for _, conn := range send_map{
 			send_map_mutex.RUnlock()
 			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
-			bandwidth_map[time.Since(program_start_time).String()] =  len(send_message)
 			conn.Write(send_message)
-			for i := 0; i < history; i++ {
-				index := len(holdback_transaction) - (i+1)
-				if index < 0 {
-					break
-				}
-				fmt.Println9("sent a histroy message")
-				send_message := []byte(holdback_transaction[index])
-				conn.Write(send_message)
-			}
 			send_map_mutex.RLock()
 		}
 		send_map_mutex.RUnlock()
@@ -293,7 +292,6 @@ func start_server(node_name string, ip_address string, port_num string) {
 
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
-	bandwidth_map = make(map[string]int)
 }
 
 func channel_init(){
@@ -335,20 +333,24 @@ func main(){
 		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
 	
+	/*
 	bandwidth_file_name := "logs/" + os.Args[3] + "/bandwidth/" + port_number + ".csv"
 	bandwidth_file, errb:= os.Create(bandwidth_file_name)
 
 	if errb != nil{
 		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
-	
+	*/
+
 	writer := csv.NewWriter(file)
 	writer.Write([]string{"Port Number","Transaction ID", "Latency"})
 	writer.Flush()
 
+	/*
 	bandwidth_writer := csv.NewWriter(bandwidth_file)
 	bandwidth_writer.Write([]string{"Port Number", "Time Since Start", "Bandwidth"})
-	
+	*/
+
 	addrs, err := net.InterfaceAddrs()
 
 	if err != nil {
@@ -399,9 +401,11 @@ func main(){
 	}
 	writer.Flush()
 
+	/*
 	for time, bytes := range bandwidth_map{
 		str_bytes := strconv.Itoa(bytes)
 		bandwidth_writer.Write([]string{port_number,time,str_bytes})
 	}	
 	bandwidth_writer.Flush()
+	*/
 }
