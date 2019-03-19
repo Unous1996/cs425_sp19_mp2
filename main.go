@@ -24,7 +24,7 @@ var (
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 10
-	history = 1
+	history = 5
 	serverhost string
 )
 
@@ -95,44 +95,69 @@ func gossip_transaction(){
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
-		send_map_mutex.RLock()
-		receivers := generateRandom(len(send_map) , gossip_fanout)
-		send_map_mutex.RUnlock()
-		count := 0
 
 		send_map_mutex.RLock()
 		for _, conn := range send_map {
 			send_map_mutex.RUnlock()
-			found := false
-			for _, value := range receivers{
-				if(count == value){
-					found = true
-				}
-				send_map_mutex.RLock()
-				break
-			}
-			if (found == false  || conn.RemoteAddr().String() == localhost) {
+			
+			if (conn.RemoteAddr().String() == localhost) {
 				send_map_mutex.RLock()
 				continue
 			}
 
 			send_map_mutex.RLock()
 			conn.Write(b)
-
+			/*
 			for i := 0; i < history; i++ {
 				index := len(holdback_transaction) - (i+1)
 				if index < 0 {
 					break
 				}
-				fmt.Println("sent a histroy message")
 				send_message := []byte(holdback_transaction[index])
 				conn.Write(send_message)
 			}
+			*/
 		}
 		send_map_mutex.RUnlock()
 	}
 }
 
+func periodically_send_transaction(){
+
+	duration, _ := time.ParseDuration("1ms")
+	time.Sleep(duration)	
+        count := 0
+        send_map_mutex.RLock()
+        receivers := generateRandom(len(send_map) , gossip_fanout)
+	send_map_mutex.RUnlock()
+	send_map_mutex.RLock()
+	for _, conn := range send_map {
+		send_map_mutex.RUnlock()
+		found := false
+		for _, value := range receivers{
+			if(count == value){
+				found = true
+			}
+			break
+		}
+
+		if (found == false  || conn.RemoteAddr().String() == localhost) {
+			send_map_mutex.RLock()
+			continue
+		}
+
+		for i := 0; i < history; i++ {
+			index := len(holdback_transaction) - (i+1)
+			if index < 0 {
+				break
+			}
+			send_message := []byte(holdback_transaction[index])
+			conn.Write(send_message)
+		}
+		send_map_mutex.RLock()
+	}
+	send_map_mutex.RUnlock()
+}
 
 func printTransaction(port_num string, xaction string) string{
 	xaction_split := strings.Split(xaction, " ")	
@@ -156,12 +181,12 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			if(failed_remote == serverhost){
 				fmt.Println("Server failed, aborting...")
 				working_chan <- true
-			}
+			} else{
 
-			if(len(strings.Split(failed_remote,":")[1]) != 5){
-				fmt.Println(" The node with remote address " + failed_remote + "had failed")
-			}
-						
+				if(len(strings.Split(failed_remote,":")[1]) != 5){
+					fmt.Println(" The node with remote address " + failed_remote + "had failed")
+				}
+			}			
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
 			send_map_mutex.Unlock()
@@ -198,11 +223,10 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				if(found == true){
 					continue
 				}
-
+				fmt.Printf("%s received a message from %s\n",port_number, conn.RemoteAddr().String())
 				time_difference := printTransaction(port_number, line)
 				holdback_transaction = append(holdback_transaction, line)
 				holdback_transaction_print = append(holdback_transaction_print, line + " " + time_difference)
-				fmt.Println(port_number + "received")
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
 		}
@@ -233,13 +257,13 @@ func addRemote(node_name string, ip_address string, port_number string){
 			continue		
 		}
 		
-		send_map_mutex.Lock()		
+		send_map_mutex.Lock()
+		fmt.Println(port_number + " extended its send map")		
 		send_map[remotehost] = remote_connection
 		send_map_mutex.Unlock()
 
 		defer remote_connection.Close()
 		go readMessage(node_name, ip_address, port_number, remote_connection)
-
 		send_map_mutex.RLock()
 		for _, conn := range send_map{
 			send_map_mutex.RUnlock()
@@ -276,13 +300,12 @@ func start_server(node_name string, ip_address string, port_num string) {
 		tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 			
 		if err != nil {
-			fmt.Println("#Failed to listen on " + port_num)
 			continue
 		}
 
-		fmt.Println("#Start listening on " + port_num)
+		fmt.Println("Start listening on ")
 		// Accept Tcp connection from other VMs
-		for {
+		for {		
 			conn, _ := tcp_listen.AcceptTCP()
 			if conn == nil{
 				continue
@@ -399,9 +422,9 @@ func main(){
 
 	//go self_introduction()
 	go gossip_transaction()
-
+	go periodically_send_transaction()
 	<-working_chan
-	fmt.Println("holdback queue length = ", len(holdback_transaction_print))
+	fmt.Printf("port_number = %s, holdback_queue_length = %d, send_map_length = %d\n",port_number, len(holdback_transaction_print), len(send_map))
 	for _, transaction := range holdback_transaction_print {
 		transaction_split := strings.Split(transaction, " ")
 		writer.Write([]string{port_number,transaction_split[2],transaction_split[6]})
