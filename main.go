@@ -95,30 +95,19 @@ func gossip_transaction(){
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
-		send_map_mutex.RLock()
-		receivers := generateRandom(len(send_map) , gossip_fanout)
-		send_map_mutex.RUnlock()
-		count := 0
 
 		send_map_mutex.RLock()
 		for _, conn := range send_map {
 			send_map_mutex.RUnlock()
-			found := false
-			for _, value := range receivers{
-				if(count == value){
-					found = true
-				}
-				send_map_mutex.RLock()
-				break
-			}
-			if (found == false  || conn.RemoteAddr().String() == localhost) {
+			
+			if (conn.RemoteAddr().String() == localhost) {
 				send_map_mutex.RLock()
 				continue
 			}
 
 			send_map_mutex.RLock()
 			conn.Write(b)
-
+			/*
 			for i := 0; i < history; i++ {
 				index := len(holdback_transaction) - (i+1)
 				if index < 0 {
@@ -127,11 +116,48 @@ func gossip_transaction(){
 				send_message := []byte(holdback_transaction[index])
 				conn.Write(send_message)
 			}
+			*/
 		}
 		send_map_mutex.RUnlock()
 	}
 }
 
+func periodically_send_transaction(){
+
+	duration, _ := time.ParseDuration("1ms")
+	time.Sleep(duration)	
+        count := 0
+        send_map_mutex.RLock()
+        receivers := generateRandom(len(send_map) , gossip_fanout)
+	send_map_mutex.RUnlock()
+	send_map_mutex.RLock()
+	for _, conn := range send_map {
+		send_map_mutex.RUnlock()
+		found := false
+		for _, value := range receivers{
+			if(count == value){
+				found = true
+			}
+			break
+		}
+
+		if (found == false  || conn.RemoteAddr().String() == localhost) {
+			send_map_mutex.RLock()
+			continue
+		}
+
+		for i := 0; i < history; i++ {
+			index := len(holdback_transaction) - (i+1)
+			if index < 0 {
+				break
+			}
+			send_message := []byte(holdback_transaction[index])
+			conn.Write(send_message)
+		}
+		send_map_mutex.RLock()
+	}
+	send_map_mutex.RUnlock()
+}
 
 func printTransaction(port_num string, xaction string) string{
 	xaction_split := strings.Split(xaction, " ")	
@@ -197,7 +223,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				if(found == true){
 					continue
 				}
-
+				fmt.Printf("%s received a message from %s\n",port_number, conn.RemoteAddr().String())
 				time_difference := printTransaction(port_number, line)
 				holdback_transaction = append(holdback_transaction, line)
 				holdback_transaction_print = append(holdback_transaction_print, line + " " + time_difference)
@@ -238,7 +264,6 @@ func addRemote(node_name string, ip_address string, port_number string){
 
 		defer remote_connection.Close()
 		go readMessage(node_name, ip_address, port_number, remote_connection)
-
 		send_map_mutex.RLock()
 		for _, conn := range send_map{
 			send_map_mutex.RUnlock()
@@ -397,7 +422,7 @@ func main(){
 
 	//go self_introduction()
 	go gossip_transaction()
-
+	go periodically_send_transaction()
 	<-working_chan
 	fmt.Printf("port_number = %s, holdback_queue_length = %d, send_map_length = %d\n",port_number, len(holdback_transaction_print), len(send_map))
 	for _, transaction := range holdback_transaction_print {
