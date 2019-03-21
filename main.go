@@ -24,7 +24,7 @@ var (
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 20
-	history = 5
+	history = 100
 	serverhost string
 )
 
@@ -113,7 +113,6 @@ func gossip_transaction(){
 }
 
 func periodically_send_transaction(){
-
 	duration, _ := time.ParseDuration("1ms")
 	time.Sleep(duration)	
         count := 0
@@ -171,13 +170,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			if(failed_remote == serverhost){
 				fmt.Println("Server failed, aborting...")
 				working_chan <- true
-			} else{
-				/*
-				if(len(strings.Split(failed_remote,":")[1]) != 5){
-					fmt.Println(" The node with remote address " + failed_remote + "had failed")
-				}
-				*/
-			}			
+			}
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
 			send_map_mutex.Unlock()
