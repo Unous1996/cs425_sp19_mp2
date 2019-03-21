@@ -284,7 +284,7 @@ func self_introduction(){
 }
 */
 
-/*
+
 func start_server(node_name string, ip_address string, port_num string) {
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 
@@ -312,7 +312,7 @@ func start_server(node_name string, ip_address string, port_num string) {
 	}
 
 }
-*/
+
 
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
@@ -395,7 +395,7 @@ func main(){
 	connect_message_byte := []byte(connect_message)
 
 	go signal_handler()
-	//go start_server(node_name, local_ip_address, port_number)
+	go start_server(node_name, local_ip_address, port_number)
 	go addRemote(node_name, local_ip_address, port_number)
 
 	//Connect to server
