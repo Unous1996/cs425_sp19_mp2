@@ -182,10 +182,11 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				fmt.Println("Server failed, aborting...")
 				working_chan <- true
 			} else{
-
+				/*
 				if(len(strings.Split(failed_remote,":")[1]) != 5){
 					fmt.Println(" The node with remote address " + failed_remote + "had failed")
 				}
+				*/
 			}			
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
@@ -250,7 +251,8 @@ func addRemote(node_name string, ip_address string, port_number string){
 		tcp_add, _ := net.ResolveTCPAddr("tcp", remotehost)
 		remote_connection, err := net.DialTCP("tcp", nil, tcp_add)
 		if err != nil {
-			fmt.Println("Failed while dialing the remote node " + remotehost)
+//			fmt.Println("Failed while dialing the remote node " + remotehost)
+			continue
 		}
 
 		if remote_connection == nil {
@@ -258,7 +260,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 		}
 		
 		send_map_mutex.Lock()
-		fmt.Println(port_number + " extended its send map")		
+	//	fmt.Println(port_number + " extended its send map")		
 		send_map[remotehost] = remote_connection
 		send_map_mutex.Unlock()
 
