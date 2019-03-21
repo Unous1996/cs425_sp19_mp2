@@ -23,7 +23,7 @@ var (
 	//server_address = "10.192.137.227"
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
-	gossip_fanout = 10
+	gossip_fanout = 20
 	history = 5
 	serverhost string
 )
@@ -53,7 +53,6 @@ func checkErr(err error) int {
 			//fmt.Println(err)
 			return 0
 		}
-		fmt.Println(err)
 		return -1
 	}
 	return 1     
@@ -107,16 +106,7 @@ func gossip_transaction(){
 
 			send_map_mutex.RLock()
 			conn.Write(b)
-			/*
-			for i := 0; i < history; i++ {
-				index := len(holdback_transaction) - (i+1)
-				if index < 0 {
-					break
-				}
-				send_message := []byte(holdback_transaction[index])
-				conn.Write(send_message)
-			}
-			*/
+
 		}
 		send_map_mutex.RUnlock()
 	}
@@ -294,6 +284,7 @@ func self_introduction(){
 }
 */
 
+/*
 func start_server(node_name string, ip_address string, port_num string) {
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 
@@ -321,6 +312,7 @@ func start_server(node_name string, ip_address string, port_num string) {
 	}
 
 }
+*/
 
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
@@ -403,7 +395,7 @@ func main(){
 	connect_message_byte := []byte(connect_message)
 
 	go signal_handler()
-	go start_server(node_name, local_ip_address, port_number)
+	//go start_server(node_name, local_ip_address, port_number)
 	go addRemote(node_name, local_ip_address, port_number)
 
 	//Connect to server
