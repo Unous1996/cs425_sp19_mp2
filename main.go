@@ -24,6 +24,7 @@ var (
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 10
+	history = 5
 	serverhost string
 )
 
@@ -37,12 +38,12 @@ var (
 
 var (
 	send_map map[string]*net.TCPConn
-	bandwidth_map map[string]int
 	send_map_mutex = sync.RWMutex{}
 )
 
 var (
 	holdback_transaction []string
+	holdback_transaction_print []string
 	pointer int
 )
 
@@ -94,34 +95,69 @@ func gossip_transaction(){
 	for {
 		gossip_message := <-gossip_chan
 		b := []byte(gossip_message)
-		send_map_mutex.RLock()
-		receivers := generateRandom(len(send_map) , gossip_fanout)
-		send_map_mutex.RUnlock()
-		count := 0
 
 		send_map_mutex.RLock()
 		for _, conn := range send_map {
 			send_map_mutex.RUnlock()
-			found := false
-			for _, value := range receivers{
-				if(count == value){
-					found = true
-				}
-				send_map_mutex.RLock()
-				break
-			}
-			if (found == false  || conn.RemoteAddr().String() == localhost) {
+			
+			if (conn.RemoteAddr().String() == localhost) {
 				send_map_mutex.RLock()
 				continue
 			}
-			bandwidth_map[time.Since(program_start_time).String()] += len(b) 
+
 			send_map_mutex.RLock()
 			conn.Write(b)
+			/*
+			for i := 0; i < history; i++ {
+				index := len(holdback_transaction) - (i+1)
+				if index < 0 {
+					break
+				}
+				send_message := []byte(holdback_transaction[index])
+				conn.Write(send_message)
+			}
+			*/
 		}
 		send_map_mutex.RUnlock()
 	}
 }
 
+func periodically_send_transaction(){
+
+	duration, _ := time.ParseDuration("1ms")
+	time.Sleep(duration)	
+        count := 0
+        send_map_mutex.RLock()
+        receivers := generateRandom(len(send_map) , gossip_fanout)
+	send_map_mutex.RUnlock()
+	send_map_mutex.RLock()
+	for _, conn := range send_map {
+		send_map_mutex.RUnlock()
+		found := false
+		for _, value := range receivers{
+			if(count == value){
+				found = true
+			}
+			break
+		}
+
+		if (found == false  || conn.RemoteAddr().String() == localhost) {
+			send_map_mutex.RLock()
+			continue
+		}
+
+		for i := 0; i < history; i++ {
+			index := len(holdback_transaction) - (i+1)
+			if index < 0 {
+				break
+			}
+			send_message := []byte(holdback_transaction[index])
+			conn.Write(send_message)
+		}
+		send_map_mutex.RLock()
+	}
+	send_map_mutex.RUnlock()
+}
 
 func printTransaction(port_num string, xaction string) string{
 	xaction_split := strings.Split(xaction, " ")	
@@ -131,9 +167,7 @@ func printTransaction(port_num string, xaction string) string{
 	current_float := float64(currt.UTC().UnixNano()) / 1000.0 / 1000.0 / 1000.0
 	time_difference := current_float - time_float
 	time_difference_string := fmt.Sprintf("%f", time_difference)
-	return_string := port_num + " " + xaction_split[2] + " " + time_difference_string
-	fmt.Println(return_string)
-	return return_string 
+	return time_difference_string
 }
 
 func readMessage(node_name string, ip_address string, port_number string, conn *net.TCPConn){
@@ -145,13 +179,14 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 		if flag == 0 {
 			failed_remote := conn.RemoteAddr().String()
 			if(failed_remote == serverhost){
+				fmt.Println("Server failed, aborting...")
 				working_chan <- true
-			}
+			} else{
 
-			if(len(strings.Split(failed_remote,":")[1]) != 5){
-				fmt.Println(" The node with remote address " + failed_remote + "had failed")
-			}
-						
+				if(len(strings.Split(failed_remote,":")[1]) != 5){
+					fmt.Println(" The node with remote address " + failed_remote + "had failed")
+				}
+			}			
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
 			send_map_mutex.Unlock()
@@ -188,11 +223,10 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				if(found == true){
 					continue
 				}
-
-				holdback_message := printTransaction(port_number, line)
-				holdback_transaction = append(holdback_transaction, holdback_message)
-				fmt.Println(port_number + "received")
-				gossip_chan <- line
+				//fmt.Printf("%s received a message from %s\n",port_number, conn.RemoteAddr().String())
+				time_difference := printTransaction(port_number, line)
+				holdback_transaction = append(holdback_transaction, line)
+				holdback_transaction_print = append(holdback_transaction_print, line + " " + time_difference)
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
 		}
@@ -223,18 +257,17 @@ func addRemote(node_name string, ip_address string, port_number string){
 			continue		
 		}
 		
-		send_map_mutex.Lock()		
+		send_map_mutex.Lock()
+		fmt.Println(port_number + " extended its send map")		
 		send_map[remotehost] = remote_connection
 		send_map_mutex.Unlock()
 
 		defer remote_connection.Close()
 		go readMessage(node_name, ip_address, port_number, remote_connection)
-
 		send_map_mutex.RLock()
 		for _, conn := range send_map{
 			send_map_mutex.RUnlock()
 			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
-			bandwidth_map[time.Since(program_start_time).String()] =  len(send_message)
 			conn.Write(send_message)
 			send_map_mutex.RLock()
 		}
@@ -261,29 +294,34 @@ func self_introduction(){
 
 func start_server(node_name string, ip_address string, port_num string) {
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
-	tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
-	tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
 
-	if err != nil {
-		fmt.Println("#Failed to listen on " + port_num)
-	}
-
-	fmt.Println("#Start listening on " + port_num)
-	// Accept Tcp connection from other VMs
 	for {
-		conn, _ := tcp_listen.AcceptTCP()
-		if conn == nil{
+		tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
+		tcp_listen, err := net.ListenTCP("tcp", tcp_addr)
+			
+		if err != nil {
 			continue
 		}
-		defer conn.Close()
 
-		go readMessage(node_name, ip_address, port_num, conn)
+		fmt.Println("Start listening on ")
+		// Accept Tcp connection from other VMs
+		for {		
+			conn, _ := tcp_listen.AcceptTCP()
+			if conn == nil{
+				continue
+			}
+			defer conn.Close()
+
+			go readMessage(node_name, ip_address, port_num, conn)
+		}
+
+		break
 	}
+
 }
 
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
-	bandwidth_map = make(map[string]int)
 }
 
 func channel_init(){
@@ -319,20 +357,18 @@ func main(){
 	//Get local ip address
 	
 	file_name := "logs/" + os.Args[3] + "/latency/" + port_number + ".csv" 
-	file, _ := os.Create(file_name)
+	file, errf := os.Create(file_name)
 
-	/*
 	if errf != nil{
-		panic("error while creating latency file")	
+		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
-	*/
-
-	bandwidth_file_name := "logs/" + os.Args[3] + "/bandwidth/" + port_number + ".csv"
-	bandwidth_file, _ := os.Create(bandwidth_file_name)
-
+	
 	/*
+	bandwidth_file_name := "logs/" + os.Args[3] + "/bandwidth/" + port_number + ".csv"
+	bandwidth_file, errb:= os.Create(bandwidth_file_name)
+
 	if errb != nil{
-		panic("error while creating bandwidth file")	
+		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
 	*/
 
@@ -340,9 +376,11 @@ func main(){
 	writer.Write([]string{"Port Number","Transaction ID", "Latency"})
 	writer.Flush()
 
+	/*
 	bandwidth_writer := csv.NewWriter(bandwidth_file)
 	bandwidth_writer.Write([]string{"Port Number", "Time Since Start", "Bandwidth"})
-	
+	*/
+
 	addrs, err := net.InterfaceAddrs()
 
 	if err != nil {
@@ -384,18 +422,20 @@ func main(){
 
 	//go self_introduction()
 	go gossip_transaction()
-
+	go periodically_send_transaction()
 	<-working_chan
-	fmt.Println("holdback queue length = ", len(holdback_transaction))
-	for _, transaction := range holdback_transaction {
+	fmt.Printf("port_number = %s, holdback_queue_length = %d, send_map_length = %d\n",port_number, len(holdback_transaction_print), len(send_map))
+	for _, transaction := range holdback_transaction_print {
 		transaction_split := strings.Split(transaction, " ")
-		writer.Write([]string{port_number,transaction_split[1],transaction_split[2]})
+		writer.Write([]string{port_number,transaction_split[2],transaction_split[6]})
 	}
 	writer.Flush()
 
+	/*
 	for time, bytes := range bandwidth_map{
 		str_bytes := strconv.Itoa(bytes)
 		bandwidth_writer.Write([]string{port_number,time,str_bytes})
 	}	
 	bandwidth_writer.Flush()
+	*/
 }

@@ -1,10 +1,10 @@
 port=5000
-mkdir -p logs/"$(date "+%F-%T")/latency"
-mkdir -p logs/"$(date "+%F-%T")/bandwidth"
-mkdir -p mergeresults/$(date "+%F-%T")
+d=`date +%m-%d-%H-%M`
+mkdir -p logs/"$d/latency"
+mkdir -p logs/"$d/bandwidth"
 
-for i in {0..9}
+for i in {0..10}
 do
 	newport=`expr $port + $i`
-	./main node $newport $(date "+%F-%T") &
+	./main node $newport $d &
 done
