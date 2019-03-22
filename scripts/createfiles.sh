@@ -20,13 +20,13 @@ then
 if sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-0${i}.cs.illinois.edu "test -d ${git_repo}"
 then
 
-sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-0${i}.cs.illinois.edu "cd ${git_repo}; cd bandwidth; touch bandwidth${i}_5001.csv; touch bandwidth${i}_5002.csv; touch bandwidth${i}_5003.csv; touch bandwidth${i}_5004.csv; touch bandwidth${i}_5005.csv; touch bandwidth${i}_5006.csv; touch bandwidth${i}_5007.csv; touch bandwidth${i}_5008.csv; touch bandwidth${i}_5009.csv; touch bandwidth${i}_5010.csv; touch bandwidth${i}_5011.csv"
+sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-0${i}.cs.illinois.edu "cd ${git_repo}; cd latency; touch latency${i}_5000.csv; touch latency${i}_5001.csv; touch latency${i}_5002.csv; touch latency${i}_5003.csv; touch latency${i}_5004.csv; touch latency${i}_5005.csv; touch latency${i}_5006.csv; touch latency${i}_5007.csv; touch latency${i}_5008.csv; touch latency${i}_5009.csv; touch latency${i}_5010.csv; touch latency${i}_5011.csv"
 
 echo ""
 
 else
 
-sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-0${i}.cs.illinois.edu "cd /home/${netid}/mp2; cd bandwidth; touch bandwidth${i}_5001.csv; touch bandwidth${i}_5002.csv; touch bandwidth${i}_5003.csv; touch bandwidth${i}_5004.csv; touch bandwidth${i}_5005.csv; touch bandwidth${i}_5006.csv; touch bandwidth${i}_5007.csv; touch bandwidth${i}_5008.csv; touch bandwidth${i}_5009.csv; touch bandwidth${i}_5010.csv; touch bandwidth${i}_5011.csv"
+sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-0${i}.cs.illinois.edu "cd /home/${netid}/mp2; cd latency; touch latency${i}_5000.csv; touch latency${i}_5001.csv; touch latency${i}_5002.csv; touch latency${i}_5003.csv; touch latency${i}_5004.csv; touch latency${i}_5005.csv; touch latency${i}_5006.csv; touch latency${i}_5007.csv; touch latency${i}_5008.csv; touch latency${i}_5009.csv; touch latency${i}_5010.csv; touch latency${i}_5011.csv"
 
 echo ""
 
@@ -40,13 +40,13 @@ if sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs4
 
 then
 
-sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "cd ${git_repo}; cd bandwidth; touch bandwidth${i}_5001.csv; touch bandwidth${i}_5002.csv; touch bandwidth${i}_5003.csv; touch bandwidth${i}_5004.csv; touch bandwidth${i}_5005.csv; touch bandwidth${i}_5006.csv; touch bandwidth${i}_5007.csv; touch bandwidth${i}_5008.csv; touch bandwidth${i}_5009.csv; touch bandwidth${i}_5010.csv; touch bandwidth${i}_5011.csv"
+sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "cd ${git_repo}; cd latency; touch latency${i}_5000.csv; touch latency${i}_5001.csv; touch latency${i}_5002.csv; touch latency${i}_5003.csv; touch latency${i}_5004.csv; touch latency${i}_5005.csv; touch latency${i}_5006.csv; touch latency${i}_5007.csv; touch latency${i}_5008.csv; touch latency${i}_5009.csv; touch latency${i}_5010.csv; touch latency${i}_5011.csv"
 
 echo ""
 
 else
 
-sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "cd /home/${netid}/mp2;cd bandwidth; touch bandwidth${i}_5001.csv; touch bandwidth${i}_5002.csv; touch bandwidth${i}_5003.csv; touch bandwidth${i}_5004.csv; touch bandwidth${i}_5005.csv; touch bandwidth${i}_5006.csv; touch bandwidth${i}_5007.csv; touch bandwidth${i}_5008.csv; touch bandwidth${i}_5009.csv; touch bandwidth${i}_5010.csv; touch bandwidth${i}_5011.csv"
+sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "cd /home/${netid}/mp2;cd latency; touch latency${i}_5000.csv; touch latency${i}_5001.csv; touch latency${i}_5002.csv; touch latency${i}_5003.csv; touch latency${i}_5004.csv; touch latency${i}_5005.csv; touch latency${i}_5006.csv; touch latency${i}_5007.csv; touch latency${i}_5008.csv; touch latency${i}_5009.csv; touch latency${i}_5010.csv; touch latency${i}_5011.csv"
 
 echo ""
 
