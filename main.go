@@ -310,6 +310,14 @@ func global_map_init(){
 	ip_2_index = map[string]string{
 		"10.192.137.227":"0",
 		"172.22.158.52":"2",
+		"172.22.94.61":"3",
+		"172.22.156.53":"4",
+		"172.22.158.53":"5",
+		"172.22.94.62":"6",
+		"172.22.156.54":"7",
+		"172.22.158.54":"8",
+		"172.22.94.63":"9",
+		"172.22.156.55":"10",
 	}
 }
 
@@ -380,7 +388,6 @@ func main(){
 	if errb != nil{
 		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
-	
 
 	latencty_writer := csv.NewWriter(file)
 	latencty_writer.Write([]string{"Port Number","Transaction ID", "Latency"})
