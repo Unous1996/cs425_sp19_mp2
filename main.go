@@ -366,32 +366,30 @@ func main(){
 
 	get_local_ip_address(port_number)
 
-	filename := "latency/" + "latency" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
-	fmt.Println("latnecy = ", filename)
-	file, errf := os.OpenFile(filename, os.O_WRONLY, 0777)
+	latency_filename := "latency/" + "latency" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
+	fmt.Println("latnecy = ", latency_filename)
+	file, errf := os.OpenFile(latency_filename, os.O_WRONLY, 0777)
 
 	if errf != nil{
 		fmt.Printf("port number %s failed to open latency file \n", port_number)
 	}
 	
-	/*
-	bandwidth_file_name := "logs/" + os.Args[3] + "/bandwidth/" + port_number + ".csv"
+	bandwidth_file_name := "bandwidth/" + "bandwidth" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
 	bandwidth_file, errb:= os.Create(bandwidth_file_name)
 
 	if errb != nil{
 		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
-	*/
+	
 
 	latencty_writer := csv.NewWriter(file)
 	latencty_writer.Write([]string{"Port Number","Transaction ID", "Latency"})
 	latencty_writer.Flush()
 
-	/*
 	bandwidth_writer := csv.NewWriter(bandwidth_file)
 	bandwidth_writer.Write([]string{"Port Number", "Time Since Start", "Bandwidth"})
-	*/
-
+	bandwidth_writer.Flush()
+	
 	connect_message := "CONNECT " + node_name + " " + local_ip_address + " " + port_number + "\n"
 	connect_message_byte := []byte(connect_message)
 
