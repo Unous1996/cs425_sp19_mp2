@@ -1,4 +1,6 @@
 main
 logs/
 mergeresults/
+latency/
+bandwidth/
 .idea/workspace.xml
