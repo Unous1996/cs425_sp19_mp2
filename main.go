@@ -358,7 +358,7 @@ func main(){
 
 	latency_filename := "latency/" + "latency" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
 	fmt.Println("latnecy = ", latency_filename)
-	file, errf := os.OpenFile(latency_filename, os.O_WRONLY, 0777)
+	file, errf := os.Create(latency_filename)
 
 	if errf != nil{
 		fmt.Printf("port number %s failed to open latency file \n", port_number)
