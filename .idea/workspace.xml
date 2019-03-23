@@ -2,11 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="68986981-d970-4656-af88-af9ab05b33ad" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/analysis.sh" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/analysis.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/buildkill.sh" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/buildkill.sh" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -19,8 +17,11 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="301">
-              <caret line="376" column="53" selection-start-line="376" selection-start-column="53" selection-end-line="376" selection-end-column="53" />
+            <state relative-caret-position="325">
+              <caret line="410" column="45" selection-start-line="410" selection-start-column="45" selection-end-line="410" selection-end-column="45" />
+              <folding>
+                <element signature="e#9996#10171#0" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -48,6 +49,7 @@
       <find>send_map</find>
       <find>holdback_transaction_print</find>
       <find>writer</find>
+      <find>latencty_writer</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -62,10 +64,11 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds">
-    <option name="y" value="22" />
-    <option name="width" value="1440" />
-    <option name="height" value="838" />
+  <component name="ProjectFrameBounds" fullScreen="true">
+    <option name="x" value="1440" />
+    <option name="y" value="-124" />
+    <option name="width" value="1280" />
+    <option name="height" value="1024" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
@@ -109,10 +112,10 @@
     </option>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="22" width="1440" height="838" extended-state="0" />
+    <frame x="-1" y="22" width="841" height="838" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.13447782" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.12265331" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -140,8 +143,11 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="301">
-          <caret line="376" column="53" selection-start-line="376" selection-start-column="53" selection-end-line="376" selection-end-column="53" />
+        <state relative-caret-position="325">
+          <caret line="410" column="45" selection-start-line="410" selection-start-column="45" selection-end-line="410" selection-end-column="45" />
+          <folding>
+            <element signature="e#9996#10171#0" />
+          </folding>
         </state>
       </provider>
     </entry>

@@ -407,10 +407,12 @@ func main(){
 	latencty_writer_mutex := sync.Mutex{}
 	fmt.Printf("port_number = %s, holdback_queue_length = %d, send_map_length = %d\n",port_number, len(holdback_transaction_print), len(send_map))
 	latencty_writer_mutex.Lock()
+	port_prefix := port_number+"_"+ip_2_index[local_ip_address]
+	fmt.Println("port_prefix = ", port_prefix)
 	for _, transaction := range holdback_transaction_print {
 		fmt.Println("Finished writing a file")
 		transaction_split := strings.Split(transaction, " ")
-		latencty_writer.Write([]string{port_number+"_"+ip_2_index[local_ip_address],transaction_split[2],transaction_split[6]})
+		latencty_writer.Write([]string{port_prefix,transaction_split[2],transaction_split[6]})
 	}
 	latencty_writer.Flush()
 	latencty_writer_mutex.Unlock()
