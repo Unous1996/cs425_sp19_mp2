@@ -260,23 +260,6 @@ func addRemote(node_name string, ip_address string, port_number string){
 	close(introduce_chan)
 }
 
-/*
-func self_introduction(){
-	time.Sleep(1*time.Second)
-	send_map_mutex.RLock()
-	for _, conn := range send_map{
-		for  remotehost, _ := range send_map{
-			ip_address := strings.Split(remotehost, ":")[0]
- 			port_number := strings.Split(remotehost, ":")[1]
-			send_message := []byte("INTRODUCE " + "node_name" + " " + ip_address + " " + port_number + "\n") 
-			conn.Write(send_message)
-		}	
-	}
-	send_map_mutex.RUnlock()
-}
-*/
-
-
 func start_server(node_name string, ip_address string, port_num string) {
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 
@@ -306,7 +289,6 @@ func start_server(node_name string, ip_address string, port_num string) {
 
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
-	ip_2_index = make(map[string]string)
 	ip_2_index = map[string]string{
 		"10.192.137.227":"0",
 		"172.22.158.52":"2",
@@ -390,11 +372,9 @@ func main(){
 	}
 
 	latencty_writer := csv.NewWriter(file)
-	latencty_writer.Write([]string{"Port Number","Transaction ID", "Latency"})
 	latencty_writer.Flush()
 
 	bandwidth_writer := csv.NewWriter(bandwidth_file)
-	bandwidth_writer.Write([]string{"Port Number", "Time Since Start", "Bandwidth"})
 	bandwidth_writer.Flush()
 	
 	connect_message := "CONNECT " + node_name + " " + local_ip_address + " " + port_number + "\n"
@@ -430,11 +410,12 @@ func main(){
 	for _, transaction := range holdback_transaction_print {
 		fmt.Println("Finished writing a file")
 		transaction_split := strings.Split(transaction, " ")
-		latencty_writer.Write([]string{port_number,transaction_split[2],transaction_split[6]})
+		latencty_writer.Write([]string{port_number+"_"+ip_2_index[local_ip_address],transaction_split[2],transaction_split[6]})
 	}
 	latencty_writer.Flush()
 	latencty_writer_mutex.Unlock()
 	fmt.Println("Finished writing all files")
+
 	/*
 	for time, bytes := range bandwidth_map{
 		str_bytes := strconv.Itoa(bytes)
@@ -442,4 +423,5 @@ func main(){
 	}	
 	bandwidth_writer.Flush()
 	*/
+
 }
