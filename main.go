@@ -289,7 +289,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				holdback_mutex.Lock()
 				found := false
 				for key, _ := range holdback_transaction {
-					if line == key {
+					if line_split[2] == key {
 						found = true
 						break
 					}
@@ -303,7 +303,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				//fmt.Printf("%s received a message from %s\n",port_number, conn.RemoteAddr().String())
 				time_difference := printTransaction(port_number, line)
 				//read_line = strings.TrimSuffix(read_line, "\n")
-				holdback_transaction[line] = time_difference
+				holdback_transaction[line_split[2]] = time_difference
 				holdback_transaction_list = append(holdback_transaction_list, line)
 				//holdback_transaction_print[line + " " + time_difference] = true
 				holdback_mutex.Unlock()
@@ -513,7 +513,6 @@ func main(){
 	latencty_writer_mutex.Lock()
 	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
 	for transaction, time_difference := range holdback_transaction {
-		//transaction_split := strings.Split(transaction, " ")
 		latencty_writer.Write([]string{port_prefix,transaction,time_difference})
 	}
 	latencty_writer.Flush()
