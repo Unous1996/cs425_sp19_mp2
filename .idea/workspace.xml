@@ -3,6 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="68986981-d970-4656-af88-af9ab05b33ad" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/analysis.sh" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/analysis.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/run.sh" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/run.sh" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -15,8 +17,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="122">
-              <caret line="129" lean-forward="true" selection-start-line="129" selection-end-line="129" />
+            <state relative-caret-position="550">
+              <caret line="286" column="39" selection-start-line="286" selection-start-column="39" selection-end-line="286" selection-end-column="39" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
                 <element signature="n#!!block;n#periodically_send_transaction#0" />
@@ -57,6 +59,9 @@
       <find>gossip</find>
       <find>gossip_chan</find>
       <find>generateRandom</find>
+      <find>holdback_transaction</find>
+      <find>send_map_mutex</find>
+      <find>holdback_mutex</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -122,7 +127,7 @@
     <frame x="1440" y="-124" width="1280" height="1024" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.14054927" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.110662356" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -150,8 +155,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="122">
-          <caret line="129" lean-forward="true" selection-start-line="129" selection-end-line="129" />
+        <state relative-caret-position="550">
+          <caret line="286" column="39" selection-start-line="286" selection-start-column="39" selection-end-line="286" selection-end-column="39" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
             <element signature="n#!!block;n#periodically_send_transaction#0" />
