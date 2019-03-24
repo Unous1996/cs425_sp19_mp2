@@ -15,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="344">
-              <caret line="282" column="28" lean-forward="true" selection-start-line="282" selection-start-column="28" selection-end-line="282" selection-end-column="28" />
+            <state relative-caret-position="394">
+              <caret line="502" column="78" selection-start-line="502" selection-start-column="78" selection-end-line="502" selection-end-column="78" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
                 <element signature="n#!!block;n#generateRandom#0" />
@@ -50,7 +50,6 @@
       <find>latencty_writer</find>
       <find>send_map</find>
       <find>conn.Write</find>
-      <find>bandwidth_map</find>
       <find>conn.Read</find>
       <find>holdback_transaction_print</find>
       <find>server</find>
@@ -61,6 +60,8 @@
       <find>holdback_transaction</find>
       <find>send_map_mutex</find>
       <find>holdback_mutex</find>
+      <find>periodically_send_transaction</find>
+      <find>bandwidth_map</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -154,8 +155,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="344">
-          <caret line="282" column="28" lean-forward="true" selection-start-line="282" selection-start-column="28" selection-end-line="282" selection-end-column="28" />
+        <state relative-caret-position="394">
+          <caret line="502" column="78" selection-start-line="502" selection-start-column="78" selection-end-line="502" selection-end-column="78" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
             <element signature="n#!!block;n#generateRandom#0" />

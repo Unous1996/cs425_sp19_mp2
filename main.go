@@ -40,6 +40,7 @@ var (
 	send_map map[string]*net.TCPConn
 	send_map_mutex = sync.RWMutex{}
 	bandwidth_map map[string]int
+	bandwidth_map_mutex = sync.RWMutex{}
 	ip_2_index map[string]string
 	send_history map[string][]string
 )
@@ -124,7 +125,9 @@ func gossip_transaction(){
 			conn.Write(b)
 
 		}
+		bandwidth_map_mutex.Lock()
 		bandwidth_map[getCurrentDuration()] += len(b) * (len(send_map) - skipped)
+		bandwidth_map_mutex.Unlock()
 		send_map_mutex.RUnlock()
 	}
 }
@@ -214,8 +217,9 @@ func periodically_send_transaction(){
 			send_map_mutex.Lock()
 		}
 		send_map_mutex.Unlock()
-
+		bandwidth_map_mutex.Lock()
 		bandwidth_map[getCurrentDuration()] += total_len
+		bandwidth_map_mutex.Unlock()
 	}
 }
 
@@ -239,7 +243,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 		if flag == 0 {
 			failed_remote := conn.RemoteAddr().String()
 			if(failed_remote == serverhost){
-				fmt.Println("Server failed, aborting...")
+				port_prefix := ip_2_index[local_ip_address] + "_" + port_number
+				fmt.Println(port_prefix + "Server failed, aborting...")
 				working_chan <- true
 			}
 			send_map_mutex.Lock()
@@ -247,9 +252,9 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			send_map_mutex.Unlock()
 			break
 		}
-
+		bandwidth_map_mutex.Lock()
 		bandwidth_map[getCurrentDuration()] += j
-		
+		bandwidth_map_mutex.Unlock()
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {
 			line_split := strings.Split(line, " ")
@@ -333,7 +338,9 @@ func addRemote(node_name string, ip_address string, port_number string){
 			conn.Write(send_message)
 			send_map_mutex.RLock()
 		}
+		bandwidth_map_mutex.Lock()
 		bandwidth_map[getCurrentDuration()] += sendMessageLen * len(send_map)
+		bandwidth_map_mutex.Unlock()
 		send_map_mutex.RUnlock()
 	}
 	close(introduce_chan)
@@ -444,7 +451,7 @@ func main(){
 	file, errf := os.Create(latency_filename)
 
 	if errf != nil{
-		fmt.Printf("port number %s failed to open latency file \n", port_number)
+		fmt.Printf("port number %s failed to create its latency file \n", port_number)
 	}
 	
 	bandwidth_file_name := "bandwidth/" + "bandwidth" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
@@ -490,7 +497,7 @@ func main(){
 	time.Sleep(5*time.Second)
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
-	port_prefix := port_number+"_"+ip_2_index[local_ip_address]
+	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
 	for _, transaction := range holdback_transaction_print {
 		transaction_split := strings.Split(transaction, " ")
 		latencty_writer.Write([]string{port_prefix,transaction_split[2],transaction_split[6]})
@@ -500,11 +507,11 @@ func main(){
 
 	bandwidth_writer_mutex := sync.Mutex{}
 	bandwidth_writer_mutex.Lock()
-	for time, bytes := range bandwidth_map{
+	for time, bytes := range bandwidth_map {
 		str_bytes := strconv.Itoa(bytes)
 		bandwidth_writer.Write([]string{port_prefix,time,str_bytes})
 	}	
 	bandwidth_writer.Flush()
 	bandwidth_writer_mutex.Unlock()
-	fmt.Println("Finished writing all files")
+	fmt.Println(port_prefix + "Finished writing all files")
 }
