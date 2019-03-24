@@ -431,7 +431,6 @@ func main(){
 	go periodically_send_transaction()
 	<-working_chan
 	latencty_writer_mutex := sync.Mutex{}
-	fmt.Printf("")
 	fmt.Printf("port_number = %s, holdback_queue_length = %d, send_map_length = %d\n",port_number, len(holdback_transaction_print), len(send_map))
 	latencty_writer_mutex.Lock()
 	port_prefix := port_number+"_"+ip_2_index[local_ip_address]
