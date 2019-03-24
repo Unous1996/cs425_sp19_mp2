@@ -447,7 +447,6 @@ func main(){
 	get_local_ip_address(port_number)
 
 	latency_filename := "latency/" + "latency" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
-	fmt.Println("latnecy = ", latency_filename)
 	file, errf := os.Create(latency_filename)
 
 	if errf != nil{
