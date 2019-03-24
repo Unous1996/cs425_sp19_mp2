@@ -5,3 +5,4 @@ latency/
 bandwidth/
 .idea/workspace.xml
 results/
+simulate.sh
