@@ -278,16 +278,12 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					}
 				}
 
-				if(found == true){
-					fmt.Println("Found duplicate")
-					holdback_mutex.Unlock()
-					continue
+				if(found == false){
+					time_difference := printTransaction(port_number, line)
+					holdback_transaction = append(holdback_transaction, line)
+					holdback_transaction_print = append(holdback_transaction_print, line + " " + time_difference)
 				}
 
-				//fmt.Printf("%s received a message from %s\n",port_number, conn.RemoteAddr().String())
-				time_difference := printTransaction(port_number, line)
-				holdback_transaction = append(holdback_transaction, line)
-				holdback_transaction_print = append(holdback_transaction_print, line + " " + time_difference)
 				holdback_mutex.Unlock()
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}

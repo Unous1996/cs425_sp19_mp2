@@ -1,4 +1,5 @@
 cd ..
+go build main.go
 git commit -a -m "$(date)"
 git push origin master
 cd scripts/
