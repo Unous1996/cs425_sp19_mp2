@@ -41,6 +41,7 @@ var (
 	send_map_mutex = sync.RWMutex{}
 	bandwidth_map map[string]int
 	ip_2_index map[string]string
+	send_history map[string][]string
 )
 
 var (
@@ -127,8 +128,9 @@ func gossip_transaction(){
 	}
 }
 
+/*
 func periodically_send_transaction(){
-	duration, _ := time.ParseDuration("1ms")
+	duration, _ := time.ParseDuration("10ms")
 	time.Sleep(duration)	
 	count := 0
 	send_map_mutex.RLock()
@@ -165,6 +167,45 @@ func periodically_send_transaction(){
 		send_map_mutex.RLock()
 	}
 	send_map_mutex.RUnlock()
+}
+*/
+
+func periodically_send_transaction(){
+	duration, _ := time.ParseDuration("10ms")
+	time.Sleep(duration)
+	total_len := 0
+	for i:= 0; i < history; i++ {
+		index := len(holdback_transaction) - (i+1)
+		if index < 0 {
+			break
+		}
+		send_message := []byte(holdback_transaction[index])
+		send_message_key := strings.Split(holdback_transaction[index], " ")[2]
+
+		count := 0
+		for remote_host, conn := range send_map{
+			if count == gossip_fanout {
+				break
+			}
+
+			found := false
+			for _, remote := range send_history[send_message_key] {
+				if remote_host == remote {
+					found = true
+					break
+				}
+			}
+
+			if found {
+				continue
+			}
+
+			conn.Write(send_message)
+			total_len += len(send_message)
+
+			count += 1
+		}
+	}
 }
 
 func printTransaction(port_num string, xaction string) string{
@@ -219,7 +260,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				}
 				found := false
 				for _, value := range holdback_transaction {
-					if line == value{
+					if line == value {
 						found = true
 						break
 					}
@@ -325,6 +366,7 @@ func global_map_init(){
 		"172.22.94.63":"9",
 		"172.22.156.55":"10",
 	}
+	send_history = make(map[string][]string)
 }
 
 func channel_init(){
@@ -440,7 +482,6 @@ func main(){
 	}
 	latencty_writer.Flush()
 	latencty_writer_mutex.Unlock()
-
 
 	bandwidth_writer_mutex := sync.Mutex{}
 	bandwidth_writer_mutex.Lock()
