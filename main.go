@@ -79,13 +79,13 @@ func generateRandom(upper_bound int, num int) [] int{
 		for {
 			appear := false
 			temp := rand.Intn(upper_bound)
-			for _, value := range result{
-				if temp == value{
-				appear = true
+			for _, value := range result {
+				if temp == value {
+					appear = true
 				}
 			}
 
-			if(appear == false){
+			if appear == false {
 				result = append(result, temp)
 				break
 			}
@@ -130,9 +130,9 @@ func gossip_transaction(){
 func periodically_send_transaction(){
 	duration, _ := time.ParseDuration("1ms")
 	time.Sleep(duration)	
-        count := 0
-        send_map_mutex.RLock()
-        receivers := generateRandom(len(send_map) , gossip_fanout)
+	count := 0
+	send_map_mutex.RLock()
+	receivers := generateRandom(len(send_map) , gossip_fanout)
 	send_map_mutex.RUnlock()
 	send_map_mutex.RLock()
 	for _, conn := range send_map {
@@ -432,7 +432,6 @@ func main(){
 	<-working_chan
 	time.Sleep(5*time.Second)
 	latencty_writer_mutex := sync.Mutex{}
-	fmt.Printf("port_number = %s, holdback_queue_length = %d, send_map_length = %d\n",port_number, len(holdback_transaction_print), len(send_map))
 	latencty_writer_mutex.Lock()
 	port_prefix := port_number+"_"+ip_2_index[local_ip_address]
 	for _, transaction := range holdback_transaction_print {
