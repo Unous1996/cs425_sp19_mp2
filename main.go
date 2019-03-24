@@ -430,6 +430,7 @@ func main(){
 	go gossip_transaction()
 	go periodically_send_transaction()
 	<-working_chan
+	time.Sleep(5*time.Second)
 	latencty_writer_mutex := sync.Mutex{}
 	fmt.Printf("port_number = %s, holdback_queue_length = %d, send_map_length = %d\n",port_number, len(holdback_transaction_print), len(send_map))
 	latencty_writer_mutex.Lock()

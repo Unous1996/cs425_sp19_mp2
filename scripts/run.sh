@@ -1,3 +1,3 @@
-read -p "Please enter your netid:" netid
-
-sshpass -p "my_password_here" ssh ${netid}@sp19-cs425-g16-02.cs.illinois.edu /home/${netid}/mp2/simulate.sh
+sh git_deploy.sh
+sh buildkill.sh
+pssh -i -h ~/.pssh_hosts_files "cd /home/aol3/mp2/;sh simulate.sh $(date +%s)"
