@@ -205,7 +205,7 @@ func periodically_send_transaction(){
 				continue
 			}
 
-			send_history[send_message_key] = append(send_history[send_message_key], remote)
+			send_history[send_message_key] = append(send_history[send_message_key], remote_host)
 
 			conn.Write(send_message)
 			total_len += len(send_message)
