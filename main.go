@@ -193,7 +193,6 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
 			send_map_mutex.Unlock()
-			break
 		}
 
 		bandwidth_map[getCurrentDuration()] += j
