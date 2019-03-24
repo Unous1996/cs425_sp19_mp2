@@ -33,12 +33,13 @@ var (
 	introduce_chan chan string
 	gossip_chan chan string
 	cleanup_chan chan os.Signal
-	program_start_time time.Time
+	start_time_time time.Time
 )
 
 var (
 	send_map map[string]*net.TCPConn
 	send_map_mutex = sync.RWMutex{}
+	bandwidth_map map[string]int
 	ip_2_index map[string]string
 )
 
@@ -46,6 +47,10 @@ var (
 	holdback_transaction []string
 	holdback_transaction_print []string
 	pointer int
+)
+
+var (
+	bandwidth_start_time time.Time
 )
 
 func checkErr(err error) int {
@@ -90,6 +95,12 @@ func generateRandom(upper_bound int, num int) [] int{
 	return result
 }
 
+func getCurrentDuration() string {
+	duration_float := time.Since(start_time_time).Seconds()
+	duration_string := fmt.Sprintf("%f", duration_float)
+	return duration_string
+}
+
 func gossip_transaction(){
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	for {
@@ -97,11 +108,13 @@ func gossip_transaction(){
 		b := []byte(gossip_message)
 
 		send_map_mutex.RLock()
+		skipped := 0
 		for _, conn := range send_map {
 			send_map_mutex.RUnlock()
 			
 			if (conn.RemoteAddr().String() == localhost) {
 				send_map_mutex.RLock()
+				skipped += 1
 				continue
 			}
 
@@ -109,6 +122,7 @@ func gossip_transaction(){
 			conn.Write(b)
 
 		}
+		bandwidth_map[getCurrentDuration()] += len(b) * (len(send_map) - skipped)
 		send_map_mutex.RUnlock()
 	}
 }
@@ -136,14 +150,18 @@ func periodically_send_transaction(){
 			continue
 		}
 
+		total_len := 0
 		for i := 0; i < history; i++ {
 			index := len(holdback_transaction) - (i+1)
 			if index < 0 {
 				break
 			}
 			send_message := []byte(holdback_transaction[index])
+			total_len += len(send_message)
 			conn.Write(send_message)
 		}
+
+		bandwidth_map[getCurrentDuration()] += total_len
 		send_map_mutex.RLock()
 	}
 	send_map_mutex.RUnlock()
@@ -249,12 +267,15 @@ func addRemote(node_name string, ip_address string, port_number string){
 		defer remote_connection.Close()
 		go readMessage(node_name, ip_address, port_number, remote_connection)
 		send_map_mutex.RLock()
+		sendMessageLen := 0
 		for _, conn := range send_map{
 			send_map_mutex.RUnlock()
 			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
+			sendMessageLen = len(send_message)
 			conn.Write(send_message)
 			send_map_mutex.RLock()
 		}
+		bandwidth_map[getCurrentDuration()] += sendMessageLen * len(send_map)
 		send_map_mutex.RUnlock()
 	}
 	close(introduce_chan)
@@ -289,6 +310,7 @@ func start_server(node_name string, ip_address string, port_num string) {
 
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
+	bandwidth_map = make(map[string]int)
 	ip_2_index = map[string]string{
 		"10.192.137.227":"0",
 		"172.22.158.52":"2",
@@ -342,7 +364,6 @@ func get_local_ip_address(port_number string){
 }
 
 func main(){
-	program_start_time = time.Now()
 	main_init()
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 	if len(os.Args) != 4 {
@@ -353,6 +374,9 @@ func main(){
 
 	node_name := os.Args[1]
 	port_number := os.Args[2]
+
+	start_time_int, _ := strconv.ParseInt(os.Args[3],10,64)
+	start_time_time = time.Unix(start_time_int,0)
 
 	get_local_ip_address(port_number)
 
@@ -405,12 +429,11 @@ func main(){
 	go periodically_send_transaction()
 	<-working_chan
 	latencty_writer_mutex := sync.Mutex{}
+	fmt.Printf("")
 	fmt.Printf("port_number = %s, holdback_queue_length = %d, send_map_length = %d\n",port_number, len(holdback_transaction_print), len(send_map))
 	latencty_writer_mutex.Lock()
 	port_prefix := port_number+"_"+ip_2_index[local_ip_address]
-	fmt.Println("port_prefix = ", port_prefix)
 	for _, transaction := range holdback_transaction_print {
-		fmt.Println("Finished writing a file")
 		transaction_split := strings.Split(transaction, " ")
 		latencty_writer.Write([]string{port_prefix,transaction_split[2],transaction_split[6]})
 	}
@@ -418,12 +441,12 @@ func main(){
 	latencty_writer_mutex.Unlock()
 	fmt.Println("Finished writing all files")
 
-	/*
+	bandwidth_writer_mutex := sync.Mutex{}
+	bandwidth_writer_mutex.Lock()
 	for time, bytes := range bandwidth_map{
 		str_bytes := strconv.Itoa(bytes)
-		bandwidth_writer.Write([]string{port_number,time,str_bytes})
+		bandwidth_writer.Write([]string{port_prefix,time,str_bytes})
 	}	
 	bandwidth_writer.Flush()
-	*/
-
+	bandwidth_writer_mutex.Unlock()
 }
