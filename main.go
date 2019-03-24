@@ -513,8 +513,8 @@ func main(){
 	latencty_writer_mutex.Lock()
 	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
 	for transaction, time_difference := range holdback_transaction {
-		transaction_split := strings.Split(transaction, " ")
-		latencty_writer.Write([]string{port_prefix,transaction_split[2],time_difference})
+		//transaction_split := strings.Split(transaction, " ")
+		latencty_writer.Write([]string{port_prefix,transaction,time_difference})
 	}
 	latencty_writer.Flush()
 	latencty_writer_mutex.Unlock()
