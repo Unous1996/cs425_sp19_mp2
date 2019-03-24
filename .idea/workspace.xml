@@ -16,11 +16,9 @@
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="236">
-              <caret line="448" column="105" selection-start-line="448" selection-start-column="105" selection-end-line="448" selection-end-column="105" />
+              <caret line="186" lean-forward="true" selection-start-line="186" selection-end-line="186" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
-                <element signature="n#!!block;n#generateRandom#0" />
-                <element signature="n#!!block;n#periodically_send_transaction#0" />
               </folding>
             </state>
           </provider>
@@ -62,6 +60,7 @@
       <find>holdback_mutex</find>
       <find>periodically_send_transaction</find>
       <find>bandwidth_map</find>
+      <find>holdback_tr</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -76,11 +75,11 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" fullScreen="true">
-    <option name="x" value="1440" />
-    <option name="y" value="-124" />
-    <option name="width" value="1280" />
-    <option name="height" value="1024" />
+  <component name="ProjectFrameBounds" extendedState="1">
+    <option name="x" value="1520" />
+    <option name="y" value="22" />
+    <option name="width" value="841" />
+    <option name="height" value="838" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
@@ -156,11 +155,9 @@
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="236">
-          <caret line="448" column="105" selection-start-line="448" selection-start-column="105" selection-end-line="448" selection-end-column="105" />
+          <caret line="186" lean-forward="true" selection-start-line="186" selection-end-line="186" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
-            <element signature="n#!!block;n#generateRandom#0" />
-            <element signature="n#!!block;n#periodically_send_transaction#0" />
           </folding>
         </state>
       </provider>

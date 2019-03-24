@@ -46,8 +46,9 @@ var (
 )
 
 var (
-	holdback_transaction []string
-	holdback_transaction_print []string
+	holdback_transaction map[string]bool
+	holdback_transaction_list []string
+	holdback_transaction_print map[string]bool
 	holdback_mutex = sync.Mutex{}
 	pointer int
 )
@@ -177,14 +178,26 @@ func periodically_send_transaction(){
 func periodically_send_transaction(){
 	duration, _ := time.ParseDuration("10ms")
 	time.Sleep(duration)
+
+	/*
+	total_len := 0
+	count
+
+	sendList := generateRandom(len(send_map), history)
+
+	for transaction, _:= range send_map {
+
+	}
+	*/
+
 	total_len := 0
 	for i:= 0; i < history; i++ {
 		index := len(holdback_transaction) - (i+1)
 		if index < 0 {
 			break
 		}
-		send_message := []byte(holdback_transaction[index])
-		send_message_key := strings.Split(holdback_transaction[index], " ")[2]
+		send_message := []byte(holdback_transaction_list[index])
+		send_message_key := strings.Split(holdback_transaction_list[index], " ")[2]
 
 		count := 0
 		send_map_mutex.Lock()
@@ -276,8 +289,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				}
 				holdback_mutex.Lock()
 				found := false
-				for _, value := range holdback_transaction {
-					if line == value {
+				for key, _ := range holdback_transaction {
+					if line == key {
 						found = true
 						break
 					}
@@ -290,8 +303,9 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				//fmt.Printf("%s received a message from %s\n",port_number, conn.RemoteAddr().String())
 				time_difference := printTransaction(port_number, line)
-				holdback_transaction = append(holdback_transaction, line)
-				holdback_transaction_print = append(holdback_transaction_print, line + " " + time_difference)
+				holdback_transaction[line] = true
+				holdback_transaction_list = append(holdback_transaction_list, line)
+				holdback_transaction_print[line + " " + time_difference] = true
 				holdback_mutex.Unlock()
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
@@ -389,6 +403,8 @@ func global_map_init(){
 		"172.22.156.55":"10",
 	}
 	send_history = make(map[string][]string)
+	holdback_transaction = make(map[string]bool)
+	holdback_transaction_print = make(map[string]bool)
 }
 
 func channel_init(){
@@ -497,7 +513,7 @@ func main(){
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
 	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
-	for _, transaction := range holdback_transaction_print {
+	for transaction, _ := range holdback_transaction_print {
 		transaction_split := strings.Split(transaction, " ")
 		latencty_writer.Write([]string{port_prefix,transaction_split[2],transaction_split[6]})
 	}
