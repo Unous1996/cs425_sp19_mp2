@@ -279,6 +279,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				}
 
 				if(found == true){
+					fmt.Println("Found duplicate")
 					holdback_mutex.Unlock()
 					continue
 				}
