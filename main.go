@@ -205,6 +205,8 @@ func periodically_send_transaction(){
 				continue
 			}
 
+			send_history[send_message_key] = append(send_history[send_message_key], remote)
+
 			conn.Write(send_message)
 			total_len += len(send_message)
 
@@ -280,6 +282,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					holdback_mutex.Unlock()
 					continue
 				}
+
 				//fmt.Printf("%s received a message from %s\n",port_number, conn.RemoteAddr().String())
 				time_difference := printTransaction(port_number, line)
 				holdback_transaction = append(holdback_transaction, line)
