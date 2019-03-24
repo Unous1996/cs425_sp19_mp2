@@ -193,6 +193,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			send_map_mutex.Lock()
 			delete(send_map, failed_remote)
 			send_map_mutex.Unlock()
+			break
 		}
 
 		bandwidth_map[getCurrentDuration()] += j
@@ -440,7 +441,7 @@ func main(){
 	}
 	latencty_writer.Flush()
 	latencty_writer_mutex.Unlock()
-	fmt.Println("Finished writing all files")
+
 
 	bandwidth_writer_mutex := sync.Mutex{}
 	bandwidth_writer_mutex.Lock()
@@ -450,4 +451,5 @@ func main(){
 	}	
 	bandwidth_writer.Flush()
 	bandwidth_writer_mutex.Unlock()
+	fmt.Println("Finished writing all files")
 }
