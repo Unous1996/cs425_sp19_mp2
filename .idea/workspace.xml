@@ -15,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="236">
-              <caret line="186" lean-forward="true" selection-start-line="186" selection-end-line="186" />
+            <state relative-caret-position="379">
+              <caret line="515" column="60" lean-forward="true" selection-start-line="515" selection-start-column="60" selection-end-line="515" selection-end-column="60" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
               </folding>
@@ -61,6 +61,7 @@
       <find>periodically_send_transaction</find>
       <find>bandwidth_map</find>
       <find>holdback_tr</find>
+      <find>transaction</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -75,7 +76,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="1">
+  <component name="ProjectFrameBounds" fullScreen="true">
     <option name="x" value="1520" />
     <option name="y" value="22" />
     <option name="width" value="841" />
@@ -154,8 +155,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="236">
-          <caret line="186" lean-forward="true" selection-start-line="186" selection-end-line="186" />
+        <state relative-caret-position="379">
+          <caret line="515" column="60" lean-forward="true" selection-start-line="515" selection-start-column="60" selection-end-line="515" selection-end-column="60" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
           </folding>
