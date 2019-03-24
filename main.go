@@ -195,6 +195,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			send_map_mutex.Unlock()
 			break
 		}
+
+		bandwidth_map[getCurrentDuration()] += j
 		
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {

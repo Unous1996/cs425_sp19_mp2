@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="68986981-d970-4656-af88-af9ab05b33ad" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -16,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="187">
-              <caret line="362" column="19" lean-forward="true" selection-start-line="362" selection-start-column="19" selection-end-line="362" selection-end-column="19" />
+            <state relative-caret-position="5730">
+              <caret line="382" column="24" lean-forward="true" selection-start-line="382" selection-start-column="24" selection-end-line="382" selection-end-column="24" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
               </folding>
@@ -45,10 +44,12 @@
       <find>multicast_transaction</find>
       <find>localhost</find>
       <find>start_</find>
-      <find>send_map</find>
       <find>holdback_transaction_print</find>
       <find>writer</find>
       <find>latencty_writer</find>
+      <find>send_map</find>
+      <find>conn.Write</find>
+      <find>bandwidth_map</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -142,8 +143,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="187">
-          <caret line="362" column="19" lean-forward="true" selection-start-line="362" selection-start-column="19" selection-end-line="362" selection-end-column="19" />
+        <state relative-caret-position="5730">
+          <caret line="382" column="24" lean-forward="true" selection-start-line="382" selection-start-column="24" selection-end-line="382" selection-end-column="24" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
           </folding>
