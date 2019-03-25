@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="68986981-d970-4656-af88-af9ab05b33ad" name="Default Changelist" comment="" />
+    <list default="true" id="68986981-d970-4656-af88-af9ab05b33ad" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -13,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="7335">
-              <caret line="489" lean-forward="true" selection-start-line="489" selection-end-line="489" />
+            <state relative-caret-position="331">
+              <caret line="264" column="17" lean-forward="true" selection-start-line="264" selection-start-column="17" selection-end-line="264" selection-end-column="17" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
               </folding>
@@ -45,8 +47,6 @@
       <find>writer</find>
       <find>latencty_writer</find>
       <find>send_map</find>
-      <find>conn.Write</find>
-      <find>conn.Read</find>
       <find>holdback_transaction_print</find>
       <find>server</find>
       <find>readMessage</find>
@@ -61,6 +61,9 @@
       <find>holdback_tr</find>
       <find>transaction</find>
       <find>holdback_transaction_list</find>
+      <find>bandwidth</find>
+      <find>conn.Write</find>
+      <find>conn.Read</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -154,8 +157,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="7335">
-          <caret line="489" lean-forward="true" selection-start-line="489" selection-end-line="489" />
+        <state relative-caret-position="331">
+          <caret line="264" column="17" lean-forward="true" selection-start-line="264" selection-start-column="17" selection-end-line="264" selection-end-column="17" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
           </folding>
