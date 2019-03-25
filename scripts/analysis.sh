@@ -49,7 +49,9 @@ done
 
 cd ../results/${foldername}/latency
 cat * > latency_${foldername}.csv
-subl latency_${foldername}.csv
+cd ../bandwidth
+cat * > bandwidth_${foldername}.csv
+subl bandwidth_${foldername}.csv
 
 
 

@@ -100,7 +100,7 @@ func generateRandom(upper_bound int, num int) [] int{
 
 func getCurrentDuration() string {
 	duration_float := time.Since(start_time_time).Seconds()
-	duration_string := fmt.Sprintf("%f", duration_float)
+	duration_string := fmt.Sprintf("%d", int(duration_float))
 	return duration_string
 }
 
