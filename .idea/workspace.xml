@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="68986981-d970-4656-af88-af9ab05b33ad" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -15,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="454">
-              <caret line="519" lean-forward="true" selection-start-line="519" selection-end-line="519" />
+            <state relative-caret-position="-222">
+              <caret line="183" lean-forward="true" selection-start-line="183" selection-end-line="183" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
               </folding>
@@ -35,10 +35,8 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>chan</find>
       <find>working_chan</find>
       <find>TRODUCE</find>
-      <find>INTRODUCE</find>
       <find>Println</find>
       <find>multicast_transaction</find>
       <find>localhost</find>
@@ -65,6 +63,8 @@
       <find>bandwidth_start_time</find>
       <find>start_time_time</find>
       <find>bandwidth_map</find>
+      <find>INTRODUCE</find>
+      <find>introduce_chan</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -79,9 +79,9 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" fullScreen="true">
-    <option name="x" value="1520" />
-    <option name="y" value="22" />
+  <component name="ProjectFrameBounds" extendedState="1">
+    <option name="x" value="85" />
+    <option name="y" value="129" />
     <option name="width" value="841" />
     <option name="height" value="838" />
   </component>
@@ -127,10 +127,10 @@
     </option>
   </component>
   <component name="ToolWindowManager">
-    <frame x="1440" y="-124" width="1280" height="1024" extended-state="0" />
+    <frame x="0" y="0" width="1440" height="900" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.110662356" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.09799714" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -143,7 +143,7 @@
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Database Changes" order="8" />
       <window_info anchor="bottom" id="Version Control" order="9" />
-      <window_info active="true" anchor="bottom" id="Terminal" order="10" visible="true" weight="0.17819707" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="10" visible="true" weight="0.20481928" />
       <window_info anchor="bottom" id="Event Log" order="11" side_tool="true" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -158,8 +158,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="454">
-          <caret line="519" lean-forward="true" selection-start-line="519" selection-end-line="519" />
+        <state relative-caret-position="-222">
+          <caret line="183" lean-forward="true" selection-start-line="183" selection-end-line="183" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
           </folding>

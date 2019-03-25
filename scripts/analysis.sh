@@ -9,8 +9,8 @@ echo ""
 
 git_repo="https://github.com/username/cs425_sp19_mp2"
 # arr=(1 2 3 4 5 6 7 8 9 10)
-# arr=(2 3)
-arr=(2 3 4 5 6 7 8 9 10)
+arr=(2 3)
+# arr=(2 3 4 5 6 7 8 9 10)
 
 for vmnumber in ${arr[*]};
 do

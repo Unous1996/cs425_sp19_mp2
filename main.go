@@ -513,7 +513,7 @@ func main(){
 	latencty_writer_mutex.Lock()
 	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
 	for transaction, time_difference := range holdback_transaction {
-		latencty_writer.Write([]string{port_prefix,transaction,time_difference})
+		latencty_writer.Write([]string{transaction,time_difference})
 	}
 	latencty_writer.Flush()
 	latencty_writer_mutex.Unlock()
@@ -522,7 +522,7 @@ func main(){
 	bandwidth_writer_mutex.Lock()
 	for time, bytes := range bandwidth_map {
 		str_bytes := strconv.Itoa(bytes)
-		bandwidth_writer.Write([]string{port_prefix,time,str_bytes})
+		bandwidth_writer.Write([]string{time,str_bytes})
 	}	
 	bandwidth_writer.Flush()
 	bandwidth_writer_mutex.Unlock()
