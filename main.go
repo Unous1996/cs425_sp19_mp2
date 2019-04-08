@@ -528,3 +528,50 @@ func main(){
 	bandwidth_writer_mutex.Unlock()
 	fmt.Println(port_prefix + "Finished writing all files")
 }
+
+/*
+	package:
+	import "crypto/sha256"
+	import "encoding/json"
+
+	var:
+	collect_logs []String
+
+	struct:
+
+	head_chain *block
+	tail_chain *block
+
+	type block struct{
+		index int `json: "index"`
+		prev_hash String `json: "prev_hash"`
+		transaction_logs []String `json: "transaction_logs"`
+		solution String `json: "solution"`
+		next *block `json: "next"`
+	}
+
+	map:
+	account map[int]int // ps: account 0 has infinite money, we just need to check other account
+
+	Algorithm:
+	1. Say, we can collect 100 transaction logs for each block (collect_logs) and check Consensus Rules at the same time (account).
+		case 1: transfer from account always succeed.
+		case 2: transfer from account n rather than 0, check account map to see if it has enough money, if so accept, otherwise reject.
+
+	2. After collect enough logs, converting collect_log to []byte and use sha256.Sum256 to hash it
+       then send the hash for this block to server for solving and waiting solution.
+
+	3. While waiting for solution:
+		case 1: if receiving block from whatever node, check the index of the received block,
+				if the index <= tail.index, just ignore it
+				if the index > tail.index and verify ok, add it to current chain and start a new term from 1, otherwise ignore it.
+
+		// To use the longest-chain rule, I think we can make it simple, that is, each time we receive two acceptable block,
+           we always choose the block with the smaller index. (that's my idea)
+		case 2: if we are the node that first solves the puzzle, that we create a new block(block struct: hash, tail.index + 1, collect_logs, solution)
+				and broadcast to other nodes through gossip function.
+
+	How to broadcast a block struct through network:
+	We can use json package, when we broadcast a block, first use json.Marshal it to []byte and then send it out.
+	When we receive a block, we can use json.Unmarshal to decode it to the block struct and then do step 3: case 1.
+ */
