@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/csv"
 	"fmt"
 	"math/rand"
@@ -14,6 +15,21 @@ import (
 	"time"
 )
 
+type Block struct{
+	index int
+	prev_hash string
+	transaction_logs []string
+	solution string
+	state map[int]int
+	next *Block
+}
+
+var (
+	head_chain *Block
+	tail_chain *Block
+	candidates []*Block
+)
+
 var (
 	local_ip_address string
 	localhost string
@@ -25,6 +41,7 @@ var (
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 20
 	history = 100
+	has_issued_solve = false
 	serverhost string
 )
 
@@ -33,6 +50,7 @@ var (
 	introduce_chan chan string
 	gossip_chan chan string
 	cleanup_chan chan os.Signal
+	solved_chan chan bool
 	start_time_time time.Time
 )
 
@@ -49,6 +67,7 @@ var (
 var (
 	logs_analysis map[string]string
 	collect_logs []string
+	tentative_blocks []*Block
 	holdback_mutex = sync.Mutex{}
 	pointer int
 )
@@ -237,7 +256,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				source, _ := strconv.Atoi(line_split[3])
 				amount, _ := strconv.Atoi(line_split[5])
-				
+
 				if(source != 0 && account[source] < amount) {
 					continue
 				}
@@ -261,6 +280,22 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				logs_analysis[line_split[2]] = line_split[1]
 
 				collect_logs = append(collect_logs, line)
+
+				for len(collect_logs) > 100 {
+					if tail_chain == nil {
+						head_chain = &Block{index:1, transaction_logs:collect_logs[:100]}
+						head_chain.state = make(map[int]int)
+						tail_chain = head_chain
+						collect_logs = collect_logs[100:]
+						continue
+					}
+
+					new_tentative_block := &Block{index: tail_chain.index + 1, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:100]}
+					new_tentative_block.state = make(map[int]int)
+					tentative_blocks = append(tentative_blocks, new_tentative_block)
+				}
+
+				/*
 				for i := len(collect_logs) - 1; i > 0; i-- {
 					curr_spilt := strings.Split(collect_logs[i], " ")
 					prev_split := strings.Split(collect_logs[i-1], " ")
@@ -270,9 +305,17 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 						collect_logs[i] = temp
 					}
 				}
+				*/
 
 				holdback_mutex.Unlock()
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
+			}
+
+			if(line_split[0] == "SOLVED"){
+				if(len(line_split) != 3){
+					continue
+				}
+				solved_chan <- true
 			}
 		}
 	}
@@ -352,6 +395,35 @@ func start_server(node_name string, ip_address string, port_num string){
 	}
 }
 
+func request_solution(server_connection *net.TCPConn){
+	if(has_issued_solve) {
+		<- solved_chan
+	}
+
+	has_issued_solve = true
+
+	for len(tentative_blocks) == 0 {
+		continue
+	}
+
+	hash_string := ""
+	last_block :=  tentative_blocks[len(tentative_blocks)-1]
+	if(last_block.index > 1){
+		hash_string += last_block.prev_hash
+	}
+
+	for _, value := range last_block.transaction_logs{
+		hash_string += value
+	}
+
+	hash_string_byte := []byte(hash_string)
+	hashed := sha256.Sum256(hash_string_byte)
+	hashed_bytes := hashed[:]
+	solved_prefix := []byte("SOLVE ")
+	solved_prefix = append(solved_prefix, hashed_bytes...)
+	server_connection.Write(solved_prefix)
+}
+
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
 	bandwidth_map = make(map[string]int)
@@ -375,6 +447,7 @@ func channel_init(){
 	introduce_chan = make(chan string)
 	gossip_chan = make(chan string)
 	working_chan = make(chan bool)
+	solved_chan = make(chan bool)
 	cleanup_chan = make(chan os.Signal)
 }
 
@@ -465,6 +538,7 @@ func main(){
 
 		defer server_connection.Close()
 		server_connection.Write(connect_message_byte)
+		go request_solution(server_connection)
 		go readMessage(node_name, local_ip_address, port_number, server_connection)
 		break
 	}
@@ -472,6 +546,7 @@ func main(){
 	//go self_introduction()
 	go gossip_transaction()
 	go periodically_send_transaction()
+
 	<-working_chan
 	time.Sleep(5*time.Second)
 	latencty_writer_mutex := sync.Mutex{}
@@ -512,7 +587,7 @@ func main(){
 		prev_hash String `json: "prev_hash"`
 		transaction_logs []String `json: "transaction_logs"`
 		solution String `json: "solution"`
-		next *block `json: "next"`
+		next []*block `json: "next"`
 	}
 
 	map:
