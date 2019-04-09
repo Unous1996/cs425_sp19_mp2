@@ -1,17 +1,17 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
+	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
-	"time"
-	"math/rand"
-	"os/signal"
 	"syscall"
-	"strconv"
-	"encoding/csv"
+	"time"
 )
 
 var (
@@ -43,11 +43,12 @@ var (
 	bandwidth_map_mutex = sync.RWMutex{}
 	ip_2_index map[string]string
 	send_history map[string][]string
+	account map[int]int
 )
 
 var (
 	holdback_transaction map[string]string
-	holdback_transaction_list []string
+	current_log []string
 	holdback_mutex = sync.Mutex{}
 	pointer int
 )
@@ -132,62 +133,9 @@ func gossip_transaction(){
 	}
 }
 
-/*
-func periodically_send_transaction(){
-	duration, _ := time.ParseDuration("10ms")
-	time.Sleep(duration)	
-	count := 0
-	send_map_mutex.RLock()
-	receivers := generateRandom(len(send_map) , gossip_fanout)
-	send_map_mutex.RUnlock()
-	send_map_mutex.RLock()
-	for _, conn := range send_map {
-		send_map_mutex.RUnlock()
-		found := false
-		for _, value := range receivers{
-			if(count == value){
-				found = true
-			}
-			break
-		}
-
-		if (found == false  || conn.RemoteAddr().String() == localhost) {
-			send_map_mutex.RLock()
-			continue
-		}
-
-		total_len := 0
-		for i := 0; i < history; i++ {
-			index := len(holdback_transaction) - (i+1)
-			if index < 0 {
-				break
-			}
-			send_message := []byte(holdback_transaction[index])
-			total_len += len(send_message)
-			conn.Write(send_message)
-		}
-
-		bandwidth_map[getCurrentDuration()] += total_len
-		send_map_mutex.RLock()
-	}
-	send_map_mutex.RUnlock()
-}
-*/
-
 func periodically_send_transaction(){
 	duration, _ := time.ParseDuration("10ms")
 	time.Sleep(duration)
-
-	/*
-	total_len := 0
-	count
-
-	sendList := generateRandom(len(send_map), history)
-
-	for transaction, _:= range send_map {
-
-	}
-	*/
 
 	total_len := 0
 	for i:= 0; i < history; i++ {
@@ -195,8 +143,8 @@ func periodically_send_transaction(){
 		if index < 0 {
 			break
 		}
-		send_message := []byte(holdback_transaction_list[index])
-		send_message_key := strings.Split(holdback_transaction_list[index], " ")[2]
+		send_message := []byte(current_log[index])
+		send_message_key := strings.Split(current_log[index], " ")[2]
 
 		count := 0
 		send_map_mutex.Lock()
@@ -300,12 +248,21 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					continue
 				}
 
-				//fmt.Printf("%s received a message from %s\n",port_number, conn.RemoteAddr().String())
 				time_difference := printTransaction(port_number, line)
-				//read_line = strings.TrimSuffix(read_line, "\n")
+
 				holdback_transaction[line_split[2]] = time_difference
-				holdback_transaction_list = append(holdback_transaction_list, line)
-				//holdback_transaction_print[line + " " + time_difference] = true
+
+				current_log = append(current_log, line)
+				for i := len(current_log) - 1; i > 0; i-- {
+					curr_spilt := strings.Split(current_log[i], " ")
+					prev_split := strings.Split(current_log[i-1], " ")
+					if(curr_spilt[1] < prev_split[1]){
+						temp := current_log[i-1]
+						current_log[i-1] = current_log[i]
+						current_log[i] = temp
+					}
+				}
+
 				holdback_mutex.Unlock()
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
@@ -360,7 +317,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 	close(introduce_chan)
 }
 
-func start_server(node_name string, ip_address string, port_num string) {
+func start_server(node_name string, ip_address string, port_num string){
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
 
 	for {
