@@ -47,7 +47,7 @@ var (
 )
 
 var (
-	holdback_transaction map[string]string
+	collect_logs map[string]string
 	current_log []string
 	holdback_mutex = sync.Mutex{}
 	pointer int
@@ -139,7 +139,7 @@ func periodically_send_transaction(){
 
 	total_len := 0
 	for i:= 0; i < history; i++ {
-		index := len(holdback_transaction) - (i+1)
+		index := len(collect_logs) - (i+1)
 		if index < 0 {
 			break
 		}
@@ -236,7 +236,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				}
 				holdback_mutex.Lock()
 				found := false
-				for key, _ := range holdback_transaction {
+				for key, _ := range collect_logs {
 					if line_split[2] == key {
 						found = true
 						break
@@ -248,9 +248,9 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					continue
 				}
 
-				time_difference := printTransaction(port_number, line)
+				printTransaction(port_number, line)
 
-				holdback_transaction[line_split[2]] = time_difference
+				collect_logs[line_split[2]] = line_split[1]
 
 				current_log = append(current_log, line)
 				for i := len(current_log) - 1; i > 0; i-- {
@@ -360,7 +360,7 @@ func global_map_init(){
 		"172.22.156.55":"10",
 	}
 	send_history = make(map[string][]string)
-	holdback_transaction = make(map[string]string)
+	collect_logs = make(map[string]string)
 }
 
 func channel_init(){
@@ -469,8 +469,8 @@ func main(){
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
 	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
-	for transaction, time_difference := range holdback_transaction {
-		latencty_writer.Write([]string{transaction,time_difference})
+	for _, value := range current_log {
+		latencty_writer.Write([]string{port_number, value})
 	}
 	latencty_writer.Flush()
 	latencty_writer_mutex.Unlock()
@@ -483,7 +483,7 @@ func main(){
 	}	
 	bandwidth_writer.Flush()
 	bandwidth_writer_mutex.Unlock()
-	fmt.Println(port_prefix + "Finished writing all files")
+	fmt.Println(port_prefix + "finished writing all files")
 }
 
 /*
