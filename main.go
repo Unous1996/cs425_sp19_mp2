@@ -402,6 +402,7 @@ func request_solution(server_connection *net.TCPConn){
 
 	for{
 		if(has_issued_solve) {
+			fmt.Println("Waiting for a 'SOLVED' message ")
 			<- solved_chan
 		}
 

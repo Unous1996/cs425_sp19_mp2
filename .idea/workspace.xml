@@ -15,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="183">
-              <caret line="546" column="53" selection-start-line="546" selection-start-column="53" selection-end-line="546" selection-end-column="53" />
+            <state relative-caret-position="225">
+              <caret line="404" column="56" selection-start-line="404" selection-start-column="56" selection-end-line="404" selection-end-column="56" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
                 <element signature="e#304#514#0" />
@@ -42,8 +42,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>latencty_writer</find>
-      <find>send_map</find>
       <find>holdback_transaction_print</find>
       <find>server</find>
       <find>readMessage</find>
@@ -72,6 +70,8 @@
       <find>sprintf</find>
       <find>TRANSACTION</find>
       <find>has_issued_solve</find>
+      <find>request_solution</find>
+      <find>solved_chan</find>
     </findStrings>
     <replaceStrings>
       <replace>current_log</replace>
@@ -166,8 +166,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="183">
-          <caret line="546" column="53" selection-start-line="546" selection-start-column="53" selection-end-line="546" selection-end-column="53" />
+        <state relative-caret-position="225">
+          <caret line="404" column="56" selection-start-line="404" selection-start-column="56" selection-end-line="404" selection-end-column="56" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
             <element signature="e#304#514#0" />
