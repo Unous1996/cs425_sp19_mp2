@@ -428,6 +428,7 @@ func request_solution(server_connection *net.TCPConn){
 		solved_prefix := []byte("SOLVE ")
 		solved_prefix = append(solved_prefix, hashed_bytes...)
 		server_connection.Write(solved_prefix)
+		fmt.Println("Sent a SOLVE message ")
 	}
 
 }

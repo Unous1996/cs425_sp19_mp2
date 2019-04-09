@@ -15,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="225">
-              <caret line="404" column="56" selection-start-line="404" selection-start-column="56" selection-end-line="404" selection-end-column="56" />
+            <state relative-caret-position="524">
+              <caret line="426" column="33" lean-forward="true" selection-start-line="426" selection-start-column="33" selection-end-line="426" selection-end-column="33" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
                 <element signature="e#304#514#0" />
@@ -166,8 +166,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="225">
-          <caret line="404" column="56" selection-start-line="404" selection-start-column="56" selection-end-line="404" selection-end-column="56" />
+        <state relative-caret-position="524">
+          <caret line="426" column="33" lean-forward="true" selection-start-line="426" selection-start-column="33" selection-end-line="426" selection-end-column="33" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
             <element signature="e#304#514#0" />
