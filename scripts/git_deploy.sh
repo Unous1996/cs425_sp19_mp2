@@ -1,12 +1,3 @@
-:'
-read -p "Please enter your username:" username
-read -p "Please enter your netid:" netid
-read -sp "Please enter your password for your netid:" password
-echo ""
-read -sp "Please enter your github password:" git_password
-echo ""
-'
-
 username="Unous1996"
 netid="aol3"
 password="fakepassword"
