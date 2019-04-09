@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="68986981-d970-4656-af88-af9ab05b33ad" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/buildkill.sh" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/buildkill.sh" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -16,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="252">
-              <caret line="544" column="10" selection-start-line="544" selection-start-column="10" selection-end-line="544" selection-end-column="10" />
+            <state relative-caret-position="315">
+              <caret line="297" column="18" selection-start-line="297" selection-start-column="18" selection-end-line="297" selection-end-column="18" />
               <folding>
                 <element signature="e#14#135#0" expanded="true" />
                 <element signature="e#304#514#0" />
@@ -167,8 +166,8 @@
     <entry file="file://$PROJECT_DIR$/testa.go" />
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="252">
-          <caret line="544" column="10" selection-start-line="544" selection-start-column="10" selection-end-line="544" selection-end-column="10" />
+        <state relative-caret-position="315">
+          <caret line="297" column="18" selection-start-line="297" selection-start-column="18" selection-end-line="297" selection-end-column="18" />
           <folding>
             <element signature="e#14#135#0" expanded="true" />
             <element signature="e#304#514#0" />
