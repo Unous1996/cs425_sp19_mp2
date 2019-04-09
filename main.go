@@ -399,15 +399,18 @@ func start_server(node_name string, ip_address string, port_num string){
 }
 
 func request_solution(server_connection *net.TCPConn){
-
+	fmt.Println("beginning of the request solution routine")
 	for{
+		fmt.Println("label 1")
 		if(has_issued_solve) {
 			fmt.Println("Waiting for a 'SOLVED' message ")
 			<- solved_chan
 		}
 
+
 		has_issued_solve = true
 
+		fmt.Println("label 2")
 		for len(tentative_blocks) == 0 {
 			continue
 		}
@@ -422,6 +425,7 @@ func request_solution(server_connection *net.TCPConn){
 			hash_string += value
 		}
 
+		fmt.Println("label 3")
 		hash_string_byte := []byte(hash_string)
 		hashed := sha256.Sum256(hash_string_byte)
 		hashed_bytes := hashed[:]
