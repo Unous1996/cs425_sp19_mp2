@@ -47,8 +47,8 @@ var (
 )
 
 var (
-	collect_logs map[string]string
-	current_log []string
+	logs_analysis map[string]string
+	collect_logs []string
 	holdback_mutex = sync.Mutex{}
 	pointer int
 )
@@ -139,12 +139,12 @@ func periodically_send_transaction(){
 
 	total_len := 0
 	for i:= 0; i < history; i++ {
-		index := len(collect_logs) - (i+1)
+		index := len(logs_analysis) - (i+1)
 		if index < 0 {
 			break
 		}
-		send_message := []byte(current_log[index])
-		send_message_key := strings.Split(current_log[index], " ")[2]
+		send_message := []byte(collect_logs[index])
+		send_message_key := strings.Split(collect_logs[index], " ")[2]
 
 		count := 0
 		send_map_mutex.Lock()
@@ -234,9 +234,17 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				if(len(line_split) != 6){
 					continue
 				}
+
+				source, _ := strconv.Atoi(line_split[3])
+				amount, _ := strconv.Atoi(line_split[5])
+				
+				if(source != 0 && account[source] < amount) {
+					continue
+				}
+
 				holdback_mutex.Lock()
 				found := false
-				for key, _ := range collect_logs {
+				for key, _ := range logs_analysis {
 					if line_split[2] == key {
 						found = true
 						break
@@ -250,16 +258,16 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				printTransaction(port_number, line)
 
-				collect_logs[line_split[2]] = line_split[1]
+				logs_analysis[line_split[2]] = line_split[1]
 
-				current_log = append(current_log, line)
-				for i := len(current_log) - 1; i > 0; i-- {
-					curr_spilt := strings.Split(current_log[i], " ")
-					prev_split := strings.Split(current_log[i-1], " ")
+				collect_logs = append(collect_logs, line)
+				for i := len(collect_logs) - 1; i > 0; i-- {
+					curr_spilt := strings.Split(collect_logs[i], " ")
+					prev_split := strings.Split(collect_logs[i-1], " ")
 					if(curr_spilt[1] < prev_split[1]){
-						temp := current_log[i-1]
-						current_log[i-1] = current_log[i]
-						current_log[i] = temp
+						temp := collect_logs[i-1]
+						collect_logs[i-1] = collect_logs[i]
+						collect_logs[i] = temp
 					}
 				}
 
@@ -360,7 +368,7 @@ func global_map_init(){
 		"172.22.156.55":"10",
 	}
 	send_history = make(map[string][]string)
-	collect_logs = make(map[string]string)
+	logs_analysis = make(map[string]string)
 }
 
 func channel_init(){
@@ -469,7 +477,7 @@ func main(){
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
 	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
-	for _, value := range current_log {
+	for _, value := range collect_logs {
 		latencty_writer.Write([]string{port_number, value})
 	}
 	latencty_writer.Flush()
@@ -492,7 +500,7 @@ func main(){
 	import "encoding/json"
 
 	var:
-	collect_logs []String
+	logs_analysis []String
 
 	struct:
 
@@ -511,7 +519,7 @@ func main(){
 	account map[int]int // ps: account 0 has infinite money, we just need to check other account
 
 	Algorithm:
-	1. Say, we can collect 100 transaction logs for each block (collect_logs) and check Consensus Rules at the same time (account).
+	1. Say, we can collect 100 transaction logs for each block (logs_analysis) and check Consensus Rules at the same time (account).
 		case 1: transfer from account always succeed.
 		case 2: transfer from account n rather than 0, check account map to see if it has enough money, if so accept, otherwise reject.
 
@@ -525,7 +533,7 @@ func main(){
 
 		// To use the longest-chain rule, I think we can make it simple, that is, each time we receive two acceptable block,
            we always choose the block with the smaller index. (that's my idea)
-		case 2: if we are the node that first solves the puzzle, that we create a new block(block struct: hash, tail.index + 1, collect_logs, solution)
+		case 2: if we are the node that first solves the puzzle, that we create a new block(block struct: hash, tail.index + 1, logs_analysis, solution)
 				and broadcast to other nodes through gossip function.
 
 	How to broadcast a block struct through network:
