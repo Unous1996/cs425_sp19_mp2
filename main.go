@@ -396,32 +396,36 @@ func start_server(node_name string, ip_address string, port_num string){
 }
 
 func request_solution(server_connection *net.TCPConn){
-	if(has_issued_solve) {
-		<- solved_chan
+
+	for{
+		if(has_issued_solve) {
+			<- solved_chan
+		}
+
+		has_issued_solve = true
+
+		for len(tentative_blocks) == 0 {
+			continue
+		}
+
+		hash_string := ""
+		last_block :=  tentative_blocks[len(tentative_blocks)-1]
+		if(last_block.index > 1){
+			hash_string += last_block.prev_hash
+		}
+
+		for _, value := range last_block.transaction_logs{
+			hash_string += value
+		}
+
+		hash_string_byte := []byte(hash_string)
+		hashed := sha256.Sum256(hash_string_byte)
+		hashed_bytes := hashed[:]
+		solved_prefix := []byte("SOLVE ")
+		solved_prefix = append(solved_prefix, hashed_bytes...)
+		server_connection.Write(solved_prefix)
 	}
 
-	has_issued_solve = true
-
-	for len(tentative_blocks) == 0 {
-		continue
-	}
-
-	hash_string := ""
-	last_block :=  tentative_blocks[len(tentative_blocks)-1]
-	if(last_block.index > 1){
-		hash_string += last_block.prev_hash
-	}
-
-	for _, value := range last_block.transaction_logs{
-		hash_string += value
-	}
-
-	hash_string_byte := []byte(hash_string)
-	hashed := sha256.Sum256(hash_string_byte)
-	hashed_bytes := hashed[:]
-	solved_prefix := []byte("SOLVE ")
-	solved_prefix = append(solved_prefix, hashed_bytes...)
-	server_connection.Write(solved_prefix)
 }
 
 func global_map_init(){
