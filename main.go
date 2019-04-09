@@ -545,7 +545,7 @@ func main(){
 
 		defer server_connection.Close()
 		server_connection.Write(connect_message_byte)
-		//go request_solution(server_connection)
+		go request_solution(server_connection)
 		go readMessage(node_name, local_ip_address, port_number, server_connection)
 		break
 	}
