@@ -281,7 +281,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				collect_logs = append(collect_logs, line)
 
-				/*
+
 				for len(collect_logs) > 100 {
 					if tail_chain == nil {
 						head_chain = &Block{index:1, transaction_logs:collect_logs[:100]}
@@ -294,8 +294,9 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					new_tentative_block := &Block{index: tail_chain.index + 1, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:100]}
 					new_tentative_block.state = make(map[int]int)
 					tentative_blocks = append(tentative_blocks, new_tentative_block)
+					collect_logs = collect_logs[100:]
 				}
-				*/
+
 
 				/*
 				for i := len(collect_logs) - 1; i > 0; i-- {
