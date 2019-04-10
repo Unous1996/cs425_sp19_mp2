@@ -281,13 +281,13 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				collect_logs = append(collect_logs, line)
 
-
 				for len(collect_logs) > 100 {
 					if tail_chain == nil {
 						head_chain = &Block{index:1, transaction_logs:collect_logs[:100]}
 						head_chain.state = make(map[int]int)
 						tail_chain = head_chain
 						collect_logs = collect_logs[100:]
+						fmt.Println("put some stuff in the solved_chan", solved_chan)
 						solved_chan <- tail_chain
 						continue
 					}
@@ -313,6 +313,11 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				holdback_mutex.Unlock()
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
+
+			if(line_split[0] == "SOLVED"){
+				fmt.Println("received a SOLVED message")
+			}
+
 		}
 	}
 }
@@ -392,25 +397,26 @@ func start_server(node_name string, ip_address string, port_num string){
 }
 
 func request_solution(server_connection *net.TCPConn){
-	
+	fmt.Println("Routine request solution called")
 	for {
 		hash_string := ""
+
 		last_block := <- solved_chan
+		fmt.Println("passed chan")
 
 		if(last_block.index > 1) {
 			hash_string += last_block.prev_hash
 		}
 
-		for _, value := range last_block.transaction_logs{
+		for _, value := range last_block.transaction_logs {
 			hash_string += value
 		}
 
-		hash_string_byte := []byte(hash_string)
-		hashed := sha256.Sum256(hash_string_byte)
-		hashed_bytes := hashed[:]
-		solved_prefix := []byte("SOLVE ")
-		solved_prefix = append(solved_prefix, hashed_bytes...)
-		server_connection.Write(solved_prefix)
+		sum := sha256.Sum256([]byte(hash_string))
+		hashed_string := fmt.Sprintf("%x", sum)
+		send_string := "SOLVE " + hashed_string + "\n"
+		fmt.Println("send_string = ", send_string)
+		server_connection.Write([]byte(send_string))
 	}
 
 }
