@@ -5,7 +5,6 @@
 #read -sp "Please enter your github password:(whatever)" git_password
 #echo ""
 
-
 username="Unous1996"
 netid="aol3"
 password="fakepassword"

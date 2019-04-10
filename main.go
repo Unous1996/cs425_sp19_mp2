@@ -50,7 +50,7 @@ var (
 	introduce_chan chan string
 	gossip_chan chan string
 	cleanup_chan chan os.Signal
-	solved_chan chan bool
+	solved_chan chan *Block
 	start_time_time time.Time
 )
 
@@ -288,15 +288,15 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 						head_chain.state = make(map[int]int)
 						tail_chain = head_chain
 						collect_logs = collect_logs[100:]
+						solved_chan <- tail_chain
 						continue
 					}
 
 					new_tentative_block := &Block{index: tail_chain.index + 1, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:100]}
 					new_tentative_block.state = make(map[int]int)
-					tentative_blocks = append(tentative_blocks, new_tentative_block)
 					collect_logs = collect_logs[100:]
+					solved_chan <- new_tentative_block
 				}
-
 
 				/*
 				for i := len(collect_logs) - 1; i > 0; i-- {
@@ -312,13 +312,6 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				holdback_mutex.Unlock()
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
-			}
-
-			if(line_split[0] == "SOLVED"){
-				if(len(line_split) != 3){
-					continue
-				}
-				solved_chan <- true
 			}
 		}
 	}
@@ -399,25 +392,12 @@ func start_server(node_name string, ip_address string, port_num string){
 }
 
 func request_solution(server_connection *net.TCPConn){
-	fmt.Println("beginning of the request solution routine")
-	for{
-		fmt.Println("label 1")
-		if(has_issued_solve) {
-			fmt.Println("Waiting for a 'SOLVED' message ")
-			<- solved_chan
-		}
-
-
-		has_issued_solve = true
-
-		fmt.Println("label 2")
-		for len(tentative_blocks) == 0 {
-			continue
-		}
-
+	
+	for {
 		hash_string := ""
-		last_block :=  tentative_blocks[len(tentative_blocks)-1]
-		if(last_block.index > 1){
+		last_block := <- solved_chan
+
+		if(last_block.index > 1) {
 			hash_string += last_block.prev_hash
 		}
 
@@ -425,14 +405,12 @@ func request_solution(server_connection *net.TCPConn){
 			hash_string += value
 		}
 
-		fmt.Println("label 3")
 		hash_string_byte := []byte(hash_string)
 		hashed := sha256.Sum256(hash_string_byte)
 		hashed_bytes := hashed[:]
 		solved_prefix := []byte("SOLVE ")
 		solved_prefix = append(solved_prefix, hashed_bytes...)
 		server_connection.Write(solved_prefix)
-		fmt.Println("Sent a SOLVE message ")
 	}
 
 }
@@ -460,7 +438,7 @@ func channel_init(){
 	introduce_chan = make(chan string)
 	gossip_chan = make(chan string)
 	working_chan = make(chan bool)
-	solved_chan = make(chan bool)
+	solved_chan = make(chan *Block)
 	cleanup_chan = make(chan os.Signal)
 }
 
