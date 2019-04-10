@@ -43,7 +43,7 @@ var (
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 20
-	batch_size = 10
+	batch_size = 20
 	history = 100
 	has_issued_solve = false
 	max_number_of_nodes_per_machine = 12
@@ -67,7 +67,7 @@ var (
 	bandwidth_map_mutex = sync.RWMutex{}
 	ip_2_index map[string]string
 	send_history map[string][]string
-	account map[int]int
+	uncomitted_tail map[int]int
 )
 
 var (
@@ -274,9 +274,11 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				}
 
 				source, _ := strconv.Atoi(line_split[3])
+				destination, _ := strconv.Atoi(line_split[4])
 				amount, _ := strconv.Atoi(line_split[5])
 
-				if(source != 0 && account[source] < amount) {
+				_, ok := tail_chain.state[source]
+				if(source != 0 && (!ok || tail_chain.state[source] < amount)) {
 					continue
 				}
 
@@ -300,29 +302,25 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				collect_logs = append(collect_logs, line)
 
+				uncomitted_tail[source] -= amount
+				uncomitted_tail[destination] += amount
+
 				fmt.Println(len(collect_logs))
 				for len(collect_logs) > batch_size {
 					var new_tentative_block *Block
+
 					if tail_chain.index > 1 {
-						new_tentative_block = &Block{index: tail_chain.index + 1, prioirty: port_priority, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:batch_size], state:tail_chain.state}
+						new_tentative_block = &Block{index: tail_chain.index + 1, prioirty: port_priority, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:batch_size]}
 					} else {
-						new_tentative_block = &Block{index: tail_chain.index + 1, prioirty: port_priority, transaction_logs:collect_logs[:batch_size], state:tail_chain.state}
+						new_tentative_block = &Block{index: tail_chain.index + 1, prioirty: port_priority, transaction_logs:collect_logs[:batch_size]}
+					}
+
+					new_tentative_block.state = make(map[int]int)
+					for account, amount := range uncomitted_tail {
+						new_tentative_block.state[account] = amount
 					}
 
 					collect_logs = collect_logs[batch_size:]
-
-					for _, transaction := range new_tentative_block.transaction_logs {
-						transaction_split := strings.Split(transaction,  " ")
-						sender_string := transaction_split[3]
-						receiver_string := transaction_split[4]
-						amount_string := transaction_split[5]
-						sender, _ := strconv.Atoi(sender_string)
-						receiver, _ := strconv.Atoi(receiver_string)
-						amount, _ := strconv.Atoi(amount_string)
-
-						new_tentative_block.state[sender] -= amount
-						new_tentative_block.state[receiver] += amount
-					}
 
 					hash_string := ""
 					if(new_tentative_block.index > 1) {
@@ -332,6 +330,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					for _, value := range new_tentative_block.transaction_logs {
 						hash_string += value
 					}
+
 					sum := sha256.Sum256([]byte(hash_string))
 					sum_string := fmt.Sprintf("%x", sum)
 					solution_map[sum_string] = new_tentative_block
@@ -361,13 +360,13 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				if prev_block, ok := solution_map[line_split[1]]; ok {
 					prev_block.solution = line_split[2]
-
+					fmt.Println("send_length = ", len(prev_block.state))
 					/*multicast prev block*/
 					prev_block_bytes, _ := json.Marshal(*prev_block)
 
 					prefix := "BLOCK "
 					suffix := "\n"
-
+					fmt.Println("send block = ", string(prev_block_bytes))
 					new_bytes := []byte(prefix + string(prev_block_bytes) + suffix)
 
 					send_map_mutex.RLock()
@@ -390,13 +389,19 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			if(line_split[0] == "BLOCK"){
 				fmt.Println("Received a block")
 				var received_block Block
+				fmt.Println("receivec_block = ", line_split[1])
 				err := json.Unmarshal([]byte(line_split[1]), &received_block)
 				if err != nil {
 					fmt.Println("Error is not nil")
 				}
 
-				if received_block.index == tail_chain.index + 1 || priorityLargerThan(received_block.index, tail_chain.index){
+
+
+				if received_block.index == tail_chain.index + 1 || (received_block.index == tail_chain.index && priorityLargerThan(received_block.index, tail_chain.index)){
+					fmt.Println("received_block_length = ", len(received_block.state))
+					tail_chain.next = &received_block
 					tail_chain = &received_block
+					uncomitted_tail = received_block.state
 					for key, _ := range(solution_map){
 						delete(solution_map, key)
 					}
@@ -510,6 +515,7 @@ func global_map_init(){
 	send_history = make(map[string][]string)
 	logs_analysis = make(map[string]string)
 	solution_map = make(map[string]*Block)
+	uncomitted_tail = make(map[int]int)
 }
 
 func channel_init(){
@@ -598,12 +604,22 @@ func main(){
 		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
 	}
 
+	balance_file_name := "balance/" + "balance" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
+	balance_file, erra:= os.Create(balance_file_name)
+
+	if erra != nil{
+		fmt.Printf("port number %s failed to create the latency file \n", port_number)
+	}
+
 	latencty_writer := csv.NewWriter(file)
 	latencty_writer.Flush()
 
 	bandwidth_writer := csv.NewWriter(bandwidth_file)
 	bandwidth_writer.Flush()
-	
+
+	balance_writer := csv.NewWriter(balance_file)
+	balance_writer.Flush()
+
 	connect_message := "CONNECT " + node_name + " " + local_ip_address + " " + port_number + "\n"
 	connect_message_byte := []byte(connect_message)
 
@@ -634,6 +650,9 @@ func main(){
 
 	<-working_chan
 	time.Sleep(5*time.Second)
+	fmt.Println("Finally, the transaction is as follows:")
+	fmt.Println("len(tail_chain.state) = ", len(tail_chain.state))
+
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
 	for _, value := range collect_logs {
@@ -651,6 +670,18 @@ func main(){
 
 	bandwidth_writer.Flush()
 	bandwidth_writer_mutex.Unlock()
+
+	balance_writer_mutex := sync.Mutex{}
+	balance_writer_mutex.Lock()
+	for account_int, value_int := range tail_chain.state {
+		account_stirng := strconv.Itoa(account_int)
+		value_string := strconv.Itoa(value_int)
+		balance_writer.Write([]string{account_stirng, value_string})
+	}
+
+	balance_writer.Flush()
+	balance_writer_mutex.Unlock()
+
 	fmt.Println(port_prefix + "finished writing all files")
 }
 
