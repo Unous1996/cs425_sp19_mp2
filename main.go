@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -15,8 +16,9 @@ import (
 	"time"
 )
 
-type Block struct{
+type Block struct {
 	index int
+	prioirty int
 	prev_hash string
 	transaction_logs []string
 	solution string
@@ -32,6 +34,8 @@ var (
 var (
 	local_ip_address string
 	localhost string
+	port_prefix string
+	port_priority int
 )
 
 var (
@@ -39,9 +43,10 @@ var (
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 20
-	batch_size = 20
+	batch_size = 10
 	history = 100
 	has_issued_solve = false
+	max_number_of_nodes_per_machine = 12
 	serverhost string
 )
 
@@ -57,6 +62,7 @@ var (
 var (
 	send_map map[string]*net.TCPConn
 	send_map_mutex = sync.RWMutex{}
+	solution_map map[string]*Block
 	bandwidth_map map[string]int
 	bandwidth_map_mutex = sync.RWMutex{}
 	ip_2_index map[string]string
@@ -116,6 +122,18 @@ func generateRandom(upper_bound int, num int) [] int{
 		}
 	}
 	return result
+}
+
+func priorityLargerThan(attacker int, defenser int) bool {
+	if attacker == port_priority {
+		return true
+	}
+
+	if defenser == port_priority {
+		return false
+	}
+
+	return attacker > defenser
 }
 
 func getCurrentDuration() string {
@@ -222,7 +240,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 		if flag == 0 {
 			failed_remote := conn.RemoteAddr().String()
 			if(failed_remote == serverhost){
-				port_prefix := ip_2_index[local_ip_address] + "_" + port_number
+
 				fmt.Println(port_prefix + "Server failed, aborting...")
 				working_chan <- true
 			}
@@ -231,6 +249,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			send_map_mutex.Unlock()
 			break
 		}
+
 		bandwidth_map_mutex.Lock()
 		bandwidth_map[getCurrentDuration()] += j
 		bandwidth_map_mutex.Unlock()
@@ -281,13 +300,13 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				collect_logs = append(collect_logs, line)
 
-				fmt.Println(tail_chain.index)
+				fmt.Println(len(collect_logs))
 				for len(collect_logs) > batch_size {
 					var new_tentative_block *Block
-					if tail_chain.index > 1{
-						new_tentative_block = &Block{index: tail_chain.index + 1, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:batch_size], state:tail_chain.state}
+					if tail_chain.index > 1 {
+						new_tentative_block = &Block{index: tail_chain.index + 1, prioirty: port_priority, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:batch_size], state:tail_chain.state}
 					} else {
-						new_tentative_block = &Block{index: tail_chain.index + 1, transaction_logs:collect_logs[:batch_size], state:tail_chain.state}
+						new_tentative_block = &Block{index: tail_chain.index + 1, prioirty: port_priority, transaction_logs:collect_logs[:batch_size], state:tail_chain.state}
 					}
 
 					collect_logs = collect_logs[batch_size:]
@@ -315,9 +334,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					}
 					sum := sha256.Sum256([]byte(hash_string))
 					sum_string := fmt.Sprintf("%x", sum)
-
+					solution_map[sum_string] = new_tentative_block
 					solved_chan <- sum_string
-
 				}
 
 				/*
@@ -331,15 +349,60 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					}
 				}
 				*/
-
 				holdback_mutex.Unlock()
 				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
 
 			if(line_split[0] == "SOLVED"){
+				fmt.Println("Received a SOLVED message ")
+				if(len(line_split) != 3){
+					continue
+				}
 
+				if prev_block, ok := solution_map[line_split[1]]; ok {
+					prev_block.solution = line_split[2]
+
+					/*multicast prev block*/
+					prev_block_bytes, _ := json.Marshal(*prev_block)
+
+					prefix := "BLOCK "
+					suffix := "\n"
+
+					new_bytes := []byte(prefix + string(prev_block_bytes) + suffix)
+
+					send_map_mutex.RLock()
+					for _, conn := range send_map {
+						send_map_mutex.RUnlock()
+						if(conn.RemoteAddr().String() == localhost){
+							send_map_mutex.RLock()
+							continue
+						}
+						conn.Write(new_bytes)
+						send_map_mutex.RLock()
+					}
+					send_map_mutex.RUnlock()
+
+					/*not sure whether I need to empty the solution list now*/
+
+				}
 			}
 
+			if(line_split[0] == "BLOCK"){
+				fmt.Println("Received a block")
+				var received_block Block
+				err := json.Unmarshal([]byte(line_split[1]), &received_block)
+				if err != nil {
+					fmt.Println("Error is not nil")
+				}
+
+				if received_block.index == tail_chain.index + 1 || priorityLargerThan(received_block.index, tail_chain.index){
+					tail_chain = &received_block
+					for key, _ := range(solution_map){
+						delete(solution_map, key)
+					}
+					collect_logs = nil
+				}
+			}
 		}
 	}
 }
@@ -376,7 +439,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 		go readMessage(node_name, ip_address, port_number, remote_connection)
 		send_map_mutex.RLock()
 		sendMessageLen := 0
-		for _, conn := range send_map{
+		for _, conn := range send_map {
 			send_map_mutex.RUnlock()
 			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			sendMessageLen = len(send_message)
@@ -446,6 +509,7 @@ func global_map_init(){
 	}
 	send_history = make(map[string][]string)
 	logs_analysis = make(map[string]string)
+	solution_map = make(map[string]*Block)
 }
 
 func channel_init(){
@@ -458,11 +522,20 @@ func channel_init(){
 
 func block_init(){
 	tail_chain.state = make(map[int]int)
+	tail_chain.prioirty = port_priority
 }
 
-func main_init(){
+func variable_init(port_number string){
+	port_prefix = ip_2_index[local_ip_address] + "_" + port_number
+	port_number_int, _ := strconv.Atoi(port_number)
+	machine_number_int, _ := strconv.Atoi(port_number)
+	port_priority = port_number_int * max_number_of_nodes_per_machine + machine_number_int
+}
+
+func main_init(port_number string){
 	global_map_init()
 	channel_init()
+	variable_init(port_number)
 	block_init()
 }
 
@@ -493,8 +566,8 @@ func get_local_ip_address(port_number string){
 }
 
 func main(){
-	main_init()
-	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
+
+
 	if len(os.Args) != 4 {
 		fmt.Println(os.Stderr, "Incorrect number of parameters")
 		fmt.Println(len(os.Args))
@@ -503,7 +576,9 @@ func main(){
 
 	node_name := os.Args[1]
 	port_number := os.Args[2]
-
+	main_init(port_number)
+	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
+	
 	start_time_int, _ := strconv.ParseInt(os.Args[3],10,64)
 	start_time_time = time.Unix(start_time_int,0)
 
@@ -561,7 +636,6 @@ func main(){
 	time.Sleep(5*time.Second)
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
-	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
 	for _, value := range collect_logs {
 		latencty_writer.Write([]string{port_number, value})
 	}
