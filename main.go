@@ -25,8 +25,7 @@ type Block struct{
 }
 
 var (
-	head_chain *Block
-	tail_chain *Block
+	tail_chain = &Block{index: 1}
 	candidates []*Block
 )
 
@@ -40,6 +39,7 @@ var (
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 20
+	batch_size = 20
 	history = 100
 	has_issued_solve = false
 	serverhost string
@@ -50,7 +50,7 @@ var (
 	introduce_chan chan string
 	gossip_chan chan string
 	cleanup_chan chan os.Signal
-	solved_chan chan *Block
+	solved_chan chan string
 	start_time_time time.Time
 )
 
@@ -281,21 +281,43 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				collect_logs = append(collect_logs, line)
 
-				for len(collect_logs) > 100 {
-					if tail_chain == nil {
-						head_chain = &Block{index:1, transaction_logs:collect_logs[:100]}
-						head_chain.state = make(map[int]int)
-						tail_chain = head_chain
-						collect_logs = collect_logs[100:]
-						fmt.Println("put some stuff in the solved_chan", solved_chan)
-						solved_chan <- tail_chain
-						continue
+				fmt.Println(tail_chain.index)
+				for len(collect_logs) > batch_size {
+					var new_tentative_block *Block
+					if tail_chain.index > 1{
+						new_tentative_block = &Block{index: tail_chain.index + 1, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:batch_size], state:tail_chain.state}
+					} else {
+						new_tentative_block = &Block{index: tail_chain.index + 1, transaction_logs:collect_logs[:batch_size], state:tail_chain.state}
 					}
 
-					new_tentative_block := &Block{index: tail_chain.index + 1, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:100]}
-					new_tentative_block.state = make(map[int]int)
-					collect_logs = collect_logs[100:]
-					solved_chan <- new_tentative_block
+					collect_logs = collect_logs[batch_size:]
+
+					for _, transaction := range new_tentative_block.transaction_logs {
+						transaction_split := strings.Split(transaction,  " ")
+						sender_string := transaction_split[3]
+						receiver_string := transaction_split[4]
+						amount_string := transaction_split[5]
+						sender, _ := strconv.Atoi(sender_string)
+						receiver, _ := strconv.Atoi(receiver_string)
+						amount, _ := strconv.Atoi(amount_string)
+
+						new_tentative_block.state[sender] -= amount
+						new_tentative_block.state[receiver] += amount
+					}
+
+					hash_string := ""
+					if(new_tentative_block.index > 1) {
+						hash_string += new_tentative_block.prev_hash
+					}
+
+					for _, value := range new_tentative_block.transaction_logs {
+						hash_string += value
+					}
+					sum := sha256.Sum256([]byte(hash_string))
+					sum_string := fmt.Sprintf("%x", sum)
+
+					solved_chan <- sum_string
+
 				}
 
 				/*
@@ -315,7 +337,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			}
 
 			if(line_split[0] == "SOLVED"){
-				fmt.Println("received a SOLVED message")
+
 			}
 
 		}
@@ -397,24 +419,10 @@ func start_server(node_name string, ip_address string, port_num string){
 }
 
 func request_solution(server_connection *net.TCPConn){
-	fmt.Println("Routine request solution called")
+
 	for {
-		hash_string := ""
-
-		last_block := <- solved_chan
-		fmt.Println("passed chan")
-
-		if(last_block.index > 1) {
-			hash_string += last_block.prev_hash
-		}
-
-		for _, value := range last_block.transaction_logs {
-			hash_string += value
-		}
-
-		sum := sha256.Sum256([]byte(hash_string))
-		hashed_string := fmt.Sprintf("%x", sum)
-		send_string := "SOLVE " + hashed_string + "\n"
+		sum_string := <- solved_chan
+		send_string := "SOLVE " + sum_string + "\n"
 		fmt.Println("send_string = ", send_string)
 		server_connection.Write([]byte(send_string))
 	}
@@ -444,13 +452,18 @@ func channel_init(){
 	introduce_chan = make(chan string)
 	gossip_chan = make(chan string)
 	working_chan = make(chan bool)
-	solved_chan = make(chan *Block)
+	solved_chan = make(chan string)
 	cleanup_chan = make(chan os.Signal)
+}
+
+func block_init(){
+	tail_chain.state = make(map[int]int)
 }
 
 func main_init(){
 	global_map_init()
 	channel_init()
+	block_init()
 }
 
 func signal_handler(){
@@ -560,7 +573,8 @@ func main(){
 	for time, bytes := range bandwidth_map {
 		str_bytes := strconv.Itoa(bytes)
 		bandwidth_writer.Write([]string{time,str_bytes})
-	}	
+	}
+
 	bandwidth_writer.Flush()
 	bandwidth_writer_mutex.Unlock()
 	fmt.Println(port_prefix + "finished writing all files")
