@@ -18,12 +18,12 @@ do
 if ((i < 10))
 then
 
-sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-0${i}.cs.illinois.edu "cd /home/${netid}/mp2; go build main.go; killall main;cd latency/; rm *; cd ../bandwidth; rm *;"
+sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-0${i}.cs.illinois.edu "cd /home/${netid}/mp2; go build main.go; killall -s SIGKILL main;"
 
 else
 
 # sshpass -p ${password} ssh -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "hostname"
-sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "cd /home/${netid}/mp2; go build main.go; killall main;cd latency/; rm *; cd ../bandwidth; rm *"
+sshpass -p ${password} ssh -t -o "StrictHostKeyChecking no" ${netid}@sp19-cs425-g16-${i}.cs.illinois.edu "cd /home/${netid}/mp2; go build main.go; killall -s SIGKILL main;"
 
 fi
 
