@@ -74,10 +74,6 @@ var (
 	blockLatencyMapMutex = sync.RWMutex{}
 	commitLatencyMap map[string]string
 	commitLatencyMapMutex = sync.RWMutex{}
-
-	holdbackTransaction map[string]string
-	holdbackTransactionMutex sync.RWMutex{}
-
 	split_time []string
 )
 
