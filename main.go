@@ -646,6 +646,7 @@ func main(){
 	go addRemote(node_name, local_ip_address, port_number)
 
 	//Connect to server
+	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
 	serverhost = server_address + ":" + server_portnumber
 	for {
 		tcp_add, _ := net.ResolveTCPAddr("tcp", serverhost)
@@ -667,9 +668,7 @@ func main(){
 	go periodically_send_transaction()
 
 	<-working_chan
-	time.Sleep(10*time.Second)
-	fmt.Println("Finally, the transaction is as follows:")
-	fmt.Println("len(tail_chain.state) = ", len(tail_chain.State))
+	time.Sleep(7*time.Second)
 
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
