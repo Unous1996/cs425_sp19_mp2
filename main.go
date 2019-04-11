@@ -17,17 +17,17 @@ import (
 )
 
 type Block struct {
-	index int
-	prioirty int
-	prev_hash string
-	transaction_logs []string
-	solution string
-	state map[int]int
-	next *Block
+	Index int `json: "index"`
+	Prioirty int `json: "priority"`
+	Prev_hash string `json: "prev_hash"`
+	Transaction_logs []string `json: "transaction_logs"`
+	Solution string `json: "solution"`
+	State map[int]int `json: "state"`
+	Next *Block `json: "next"`
 }
 
 var (
-	tail_chain = &Block{index: 1}
+	tail_chain = &Block{Index: 1}
 	candidates []*Block
 )
 
@@ -43,7 +43,7 @@ var (
 	server_address = "172.22.156.52"
 	server_portnumber = "8888" //Port number listen on
 	gossip_fanout = 20
-	batch_size = 20
+	batch_size = 25
 	history = 100
 	has_issued_solve = false
 	max_number_of_nodes_per_machine = 12
@@ -233,7 +233,7 @@ func printTransaction(port_num string, xaction string) string{
 
 func readMessage(node_name string, ip_address string, port_number string, conn *net.TCPConn){
 	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
-	buff := make([]byte, 256)
+	buff := make([]byte, 10000)
 	for {
 		j, err := conn.Read(buff)
 		flag := checkErr(err)
@@ -277,8 +277,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				destination, _ := strconv.Atoi(line_split[4])
 				amount, _ := strconv.Atoi(line_split[5])
 
-				_, ok := tail_chain.state[source]
-				if(source != 0 && (!ok || tail_chain.state[source] < amount)) {
+				_, ok := tail_chain.State[source]
+				if(source != 0 && (!ok || tail_chain.State[source] < amount)) {
 					continue
 				}
 
@@ -309,25 +309,25 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				for len(collect_logs) > batch_size {
 					var new_tentative_block *Block
 
-					if tail_chain.index > 1 {
-						new_tentative_block = &Block{index: tail_chain.index + 1, prioirty: port_priority, prev_hash: tail_chain.solution, transaction_logs:collect_logs[:batch_size]}
+					if tail_chain.Index > 1 {
+						new_tentative_block = &Block{Index: tail_chain.Index + 1, Prioirty: port_priority, Prev_hash: tail_chain.Solution, Transaction_logs:collect_logs[:batch_size]}
 					} else {
-						new_tentative_block = &Block{index: tail_chain.index + 1, prioirty: port_priority, transaction_logs:collect_logs[:batch_size]}
+						new_tentative_block = &Block{Index: tail_chain.Index + 1, Prioirty: port_priority, Transaction_logs:collect_logs[:batch_size]}
 					}
 
-					new_tentative_block.state = make(map[int]int)
+					new_tentative_block.State = make(map[int]int)
 					for account, amount := range uncomitted_tail {
-						new_tentative_block.state[account] = amount
+						new_tentative_block.State[account] = amount
 					}
 
 					collect_logs = collect_logs[batch_size:]
 
 					hash_string := ""
-					if(new_tentative_block.index > 1) {
-						hash_string += new_tentative_block.prev_hash
+					if(new_tentative_block.Index > 1) {
+						hash_string += new_tentative_block.Prev_hash
 					}
 
-					for _, value := range new_tentative_block.transaction_logs {
+					for _, value := range new_tentative_block.Transaction_logs {
 						hash_string += value
 					}
 
@@ -359,15 +359,35 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				}
 
 				if prev_block, ok := solution_map[line_split[1]]; ok {
-					prev_block.solution = line_split[2]
-					fmt.Println("send_length = ", len(prev_block.state))
+					prev_block.Solution = line_split[2]
+					fmt.Println("send_length = ", len(prev_block.State))
 					/*multicast prev block*/
-					prev_block_bytes, _ := json.Marshal(*prev_block)
+
+					/*
+					type Block struct {
+						index int `json: "index"`
+						prioirty int `json: "priority"`
+						prev_hash string `json: "prev_hash"`
+						transaction_logs []string `json: "transaction_logs"`
+						solution string `json: "solution"`
+						state map[int]int `json: "state"`
+						next *Block `json: "next"`
+					}
+					*/
+
+					created_block := Block{Index: prev_block.Index, Prioirty:prev_block.Prioirty, Prev_hash:prev_block.Prev_hash, Transaction_logs:prev_block.Transaction_logs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
+
+					prev_block_bytes, err := json.Marshal(created_block)
+
+					if err != nil {
+						fmt.Println("Error while creating the new block", err)
+					}
 
 					prefix := "BLOCK "
 					suffix := "\n"
-					fmt.Println("send block = ", string(prev_block_bytes))
+					tail_chain = &created_block
 					new_bytes := []byte(prefix + string(prev_block_bytes) + suffix)
+
 
 					send_map_mutex.RLock()
 					for _, conn := range send_map {
@@ -389,19 +409,17 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			if(line_split[0] == "BLOCK"){
 				fmt.Println("Received a block")
 				var received_block Block
-				fmt.Println("receivec_block = ", line_split[1])
-				err := json.Unmarshal([]byte(line_split[1]), &received_block)
+				fmt.Println("receivec_block = ", line[6:])
+				err := json.Unmarshal([]byte(line[6:]), &received_block)
 				if err != nil {
-					fmt.Println("Error is not nil")
+					fmt.Println(err)
 				}
 
-
-
-				if received_block.index == tail_chain.index + 1 || (received_block.index == tail_chain.index && priorityLargerThan(received_block.index, tail_chain.index)){
-					fmt.Println("received_block_length = ", len(received_block.state))
-					tail_chain.next = &received_block
+				if received_block.Index == tail_chain.Index + 1 || (received_block.Index == tail_chain.Index && priorityLargerThan(received_block.Index, tail_chain.Index)){
+					fmt.Println("received_block_length = ", len(received_block.State))
+					tail_chain.Next = &received_block
 					tail_chain = &received_block
-					uncomitted_tail = received_block.state
+					uncomitted_tail = received_block.State
 					for key, _ := range(solution_map){
 						delete(solution_map, key)
 					}
@@ -527,8 +545,8 @@ func channel_init(){
 }
 
 func block_init(){
-	tail_chain.state = make(map[int]int)
-	tail_chain.prioirty = port_priority
+	tail_chain.State = make(map[int]int)
+	tail_chain.Prioirty = port_priority
 }
 
 func variable_init(port_number string){
@@ -649,9 +667,9 @@ func main(){
 	go periodically_send_transaction()
 
 	<-working_chan
-	time.Sleep(5*time.Second)
+	time.Sleep(10*time.Second)
 	fmt.Println("Finally, the transaction is as follows:")
-	fmt.Println("len(tail_chain.state) = ", len(tail_chain.state))
+	fmt.Println("len(tail_chain.state) = ", len(tail_chain.State))
 
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
@@ -673,10 +691,10 @@ func main(){
 
 	balance_writer_mutex := sync.Mutex{}
 	balance_writer_mutex.Lock()
-	for account_int, value_int := range tail_chain.state {
+	for account_int, value_int := range tail_chain.State {
 		account_stirng := strconv.Itoa(account_int)
 		value_string := strconv.Itoa(value_int)
-		balance_writer.Write([]string{account_stirng, value_string})
+		balance_writer.Write([]string{port_prefix, account_stirng, value_string})
 	}
 
 	balance_writer.Flush()

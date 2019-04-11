@@ -35,6 +35,7 @@ echo $foldername
 
 mkdir -p ../results/${foldername}/latency
 mkdir -p ../results/${foldername}/bandwidth
+mkdir -p ../results/${foldername}/balance
 
 for vmnumber in ${arr[*]};
 do
@@ -42,9 +43,11 @@ do
 	then
 		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/latency/latency_${vmnumber}_overall.csv ../results/${foldername}/latency
 		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/bandwidth/bandwidth_${vmnumber}_overall.csv ../results/${foldername}/bandwidth
+		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/balance/balance_${vmnumber}_overall.csv ../results/${foldername}/balance	
 	else
 		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/latency/latency_${vmnumber}_overall.csv ../results/${foldername}/latency
 		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/bandwidth/bandwidth_${vmnumber}_overall.csv ../results/${foldername}/bandwidth
+		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/balance/balance_${vmnumber}_overall.csv ../results/${foldername}/balance	
 	fi
 done
 
@@ -52,6 +55,8 @@ cd ../results/${foldername}/latency
 cat * > latency_${foldername}.csv
 cd ../bandwidth
 cat * > bandwidth_${foldername}.csv
+cd ../balance
+cat * > balance_${foldername}.csv
 subl ..
 
 
