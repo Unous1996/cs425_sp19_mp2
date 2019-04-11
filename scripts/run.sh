@@ -1,6 +1,6 @@
 cd ..
 go build main.go
-git commit -a -m "$(date +%s)"
+git commit -a -m "$(date)"
 git push origin master
 cd scripts/
 sh buildkill.sh

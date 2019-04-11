@@ -75,6 +75,9 @@ var (
 	commitLatencyMap map[string]string
 	commitLatencyMapMutex = sync.RWMutex{}
 
+	holdbackTransaction map[string]string
+	holdbackTransactionMutex sync.RWMutex{}
+
 	split_time []string
 )
 
@@ -312,7 +315,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				printTransaction(port_number, line)
 
-				logs_analysis[line_split[2]] = line_split[1]
+				timeDifference := printTransaction(port_number, line)
+				logs_analysis[line_split[2]] = timeDifference
 
 				collect_logs = append(collect_logs, line)
 
@@ -728,8 +732,8 @@ func main(){
 
 	latencty_writer_mutex := sync.Mutex{}
 	latencty_writer_mutex.Lock()
-	for _, value := range collect_logs {
-		latencty_writer.Write([]string{port_number, value})
+	for ID, latency := range logs_analysis {
+		latencty_writer.Write([]string{ID, latency})
 	}
 	latencty_writer.Flush()
 	latencty_writer_mutex.Unlock()

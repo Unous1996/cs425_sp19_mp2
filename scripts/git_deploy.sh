@@ -7,7 +7,7 @@ git_repo="https://github.com/username/cs425_sp19_mp2"
 
 cd ..
 go build main.go
-git commit -a -m "$(date +%s)"
+git commit -a -m "$(date)"
 git push origin master
 
 for i in {2..10};
