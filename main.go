@@ -460,7 +460,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					durationString := fmt.Sprintf("%s", duration)
 
 					priorityString := strconv.Itoa(received_block.Priority)
-					blockLatencyMap[priorityString] = durationString[:len(durationString)-2]
+					blockLatencyMap[priorityString] = durationString
 
 					fmt.Println("received_block_length = ", len(received_block.State))
 					tailChain.Next = &received_block
