@@ -150,7 +150,7 @@ func getCurrentDuration(precision string) string {
 	if precision == "int" {
 		duration_string = fmt.Sprintf("%d", int(duration_float))
 	} else {
-		duration_string = fmt.Sprintf("%f", int(duration_float))
+		duration_string = fmt.Sprintf("%f", duration_float)
 	}
 	
 	return duration_string
@@ -456,8 +456,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 						split_time = append(split_time, getCurrentDuration("float"))
 					}
 					
-					duration := time.Since(received_block.CreatedTime)
-					durationString := fmt.Sprintf("%s", duration)
+					duration := time.Since(received_block.CreatedTime).Nanoseconds()
+					durationString := fmt.Sprintf("%s", float64(duration/1000000.0))
 
 					priorityString := strconv.Itoa(received_block.Priority)
 					blockLatencyMap[priorityString] = durationString[:len(durationString)-2]
