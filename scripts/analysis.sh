@@ -10,8 +10,8 @@ echo ""
 git_repo="https://github.com/username/cs425_sp19_mp2"
 # arr=(1 2 3 4 5 6 7 8 9 10)
 # arr=(2 3 4 5 6)
-# arr=(2 3 4 5 6 7 8 9 10)
-arr=(2 3)
+arr=(2 3 4 5 6 7 8 9 10)
+# arr=(2 3)
 
 for vmnumber in ${arr[*]};
 do
@@ -47,7 +47,7 @@ do
 	else
 		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/latency/latency_${vmnumber}_overall.csv ../results/${foldername}/latency
 		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/bandwidth/bandwidth_${vmnumber}_overall.csv ../results/${foldername}/bandwidth
-		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/balance/balance_${vmnumber}_overall.csv ../results/${foldername}/balance	
+		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/balance/balance_${vmnumber}_overall.csv ../results/${foldername}/balance	
 	fi
 done
 

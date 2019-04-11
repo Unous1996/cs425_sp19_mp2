@@ -3,6 +3,7 @@ logs/
 mergeresults/
 latency/
 bandwidth/
+blocklatency/
 .idea/workspace.xml
 results/
 balance/

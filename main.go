@@ -19,6 +19,7 @@ import (
 type Block struct {
 	Index int `json: "index"`
 	Prioirty int `json: "priority"`
+	Created_time time.Time `json: "created_time"`
 	Prev_hash string `json: "prev_hash"`
 	Transaction_logs []string `json: "transaction_logs"`
 	Solution string `json: "solution"`
@@ -62,12 +63,15 @@ var (
 var (
 	send_map map[string]*net.TCPConn
 	send_map_mutex = sync.RWMutex{}
-	solution_map map[string]*Block
+	solutionMap map[string]*Block
 	bandwidth_map map[string]int
 	bandwidth_map_mutex = sync.RWMutex{}
 	ip_2_index map[string]string
 	send_history map[string][]string
 	uncomitted_tail map[int]int
+	split_map map[int]int
+	block_latency_map map[string]string
+	split_time []string
 )
 
 var (
@@ -136,9 +140,15 @@ func priorityLargerThan(attacker int, defenser int) bool {
 	return attacker > defenser
 }
 
-func getCurrentDuration() string {
+func getCurrentDuration(precision string) string {
 	duration_float := time.Since(start_time_time).Seconds()
-	duration_string := fmt.Sprintf("%d", int(duration_float))
+	var duration_string string
+	if precision == "int" {
+		duration_string = fmt.Sprintf("%d", int(duration_float))
+	} else {
+		duration_string = fmt.Sprintf("%f", int(duration_float))
+	}
+	
 	return duration_string
 }
 
@@ -164,7 +174,7 @@ func gossip_transaction(){
 
 		}
 		bandwidth_map_mutex.Lock()
-		bandwidth_map[getCurrentDuration()] += len(b) * (len(send_map) - skipped)
+		bandwidth_map[getCurrentDuration("int")] += len(b) * (len(send_map) - skipped)
 		bandwidth_map_mutex.Unlock()
 		send_map_mutex.RUnlock()
 	}
@@ -215,7 +225,7 @@ func periodically_send_transaction(){
 		}
 		send_map_mutex.Unlock()
 		bandwidth_map_mutex.Lock()
-		bandwidth_map[getCurrentDuration()] += total_len
+		bandwidth_map[getCurrentDuration("int")] += total_len
 		bandwidth_map_mutex.Unlock()
 	}
 }
@@ -251,7 +261,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 		}
 
 		bandwidth_map_mutex.Lock()
-		bandwidth_map[getCurrentDuration()] += j
+		bandwidth_map[getCurrentDuration("int")] += j
 		bandwidth_map_mutex.Unlock()
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {
@@ -310,9 +320,9 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					var new_tentative_block *Block
 
 					if tail_chain.Index > 1 {
-						new_tentative_block = &Block{Index: tail_chain.Index + 1, Prioirty: port_priority, Prev_hash: tail_chain.Solution, Transaction_logs:collect_logs[:batch_size]}
+						new_tentative_block = &Block{Index: tail_chain.Index + 1, Prioirty: port_priority, Created_time: time.Now(), Prev_hash: tail_chain.Solution, Transaction_logs:collect_logs[:batch_size]}
 					} else {
-						new_tentative_block = &Block{Index: tail_chain.Index + 1, Prioirty: port_priority, Transaction_logs:collect_logs[:batch_size]}
+						new_tentative_block = &Block{Index: tail_chain.Index + 1, Prioirty: port_priority, Created_time: time.Now(), Transaction_logs:collect_logs[:batch_size]}
 					}
 
 					new_tentative_block.State = make(map[int]int)
@@ -333,7 +343,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 					sum := sha256.Sum256([]byte(hash_string))
 					sum_string := fmt.Sprintf("%x", sum)
-					solution_map[sum_string] = new_tentative_block
+					solutionMap[sum_string] = new_tentative_block
 					solved_chan <- sum_string
 				}
 
@@ -358,7 +368,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					continue
 				}
 
-				if prev_block, ok := solution_map[line_split[1]]; ok {
+				if prev_block, ok := solutionMap[line_split[1]]; ok {
 					prev_block.Solution = line_split[2]
 					fmt.Println("send_length = ", len(prev_block.State))
 					/*multicast prev block*/
@@ -375,7 +385,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					}
 					*/
 
-					created_block := Block{Index: prev_block.Index, Prioirty:prev_block.Prioirty, Prev_hash:prev_block.Prev_hash, Transaction_logs:prev_block.Transaction_logs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
+					created_block := Block{Index: prev_block.Index, Prioirty:prev_block.Prioirty, Created_time:time.Now(), Prev_hash:prev_block.Prev_hash, Transaction_logs:prev_block.Transaction_logs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
 
 					prev_block_bytes, err := json.Marshal(created_block)
 
@@ -396,32 +406,50 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 							send_map_mutex.RLock()
 							continue
 						}
+
 						conn.Write(new_bytes)
+						bandwidth_map_mutex.Lock()
+						bandwidth_map[getCurrentDuration("int")] += len(new_bytes)
+						bandwidth_map_mutex.Unlock()
 						send_map_mutex.RLock()
+
 					}
 					send_map_mutex.RUnlock()
 
 					/*not sure whether I need to empty the solution list now*/
-
 				}
 			}
 
 			if(line_split[0] == "BLOCK"){
-				fmt.Println("Received a block")
+
+				/*
+				func ParseDuration string 2 duration
+
+				 */
 				var received_block Block
-				fmt.Println("receivec_block = ", line[6:])
 				err := json.Unmarshal([]byte(line[6:]), &received_block)
 				if err != nil {
 					fmt.Println(err)
 				}
 
 				if received_block.Index == tail_chain.Index + 1 || (received_block.Index == tail_chain.Index && priorityLargerThan(received_block.Index, tail_chain.Index)){
+					if received_block.Index != tail_chain.Index + 1 {
+						split_map[tail_chain.Index] += 1
+						split_time = append(split_time, getCurrentDuration("float"))
+					}
+					
+					duration := time.Since(received_block.Created_time)
+					durationString := fmt.Sprintf("%s", duration)
+					
+					priorityString := strconv.Itoa(received_block.Prioirty)
+					block_latency_map[priorityString] = durationString[:len(durationString)-2]
+
 					fmt.Println("received_block_length = ", len(received_block.State))
 					tail_chain.Next = &received_block
 					tail_chain = &received_block
 					uncomitted_tail = received_block.State
-					for key, _ := range(solution_map){
-						delete(solution_map, key)
+					for key, _ := range(solutionMap){
+						delete(solutionMap, key)
 					}
 					collect_logs = nil
 				}
@@ -470,7 +498,7 @@ func addRemote(node_name string, ip_address string, port_number string){
 			send_map_mutex.RLock()
 		}
 		bandwidth_map_mutex.Lock()
-		bandwidth_map[getCurrentDuration()] += sendMessageLen * len(send_map)
+		bandwidth_map[getCurrentDuration("int")] += sendMessageLen * len(send_map)
 		bandwidth_map_mutex.Unlock()
 		send_map_mutex.RUnlock()
 	}
@@ -532,8 +560,10 @@ func global_map_init(){
 	}
 	send_history = make(map[string][]string)
 	logs_analysis = make(map[string]string)
-	solution_map = make(map[string]*Block)
+	block_latency_map = make(map[string]string)
+	solutionMap = make(map[string]*Block)
 	uncomitted_tail = make(map[int]int)
+	split_map = make(map[int]int)
 }
 
 func channel_init(){
@@ -547,6 +577,7 @@ func channel_init(){
 func block_init(){
 	tail_chain.State = make(map[int]int)
 	tail_chain.Prioirty = port_priority
+	tail_chain.Created_time = time.Now()
 }
 
 func variable_init(port_number string){
@@ -619,14 +650,21 @@ func main(){
 	bandwidth_file, errb:= os.Create(bandwidth_file_name)
 
 	if errb != nil{
-		fmt.Printf("port number %s failed to create the latency file \n", port_number)	
+		fmt.Printf("port number %s failed to create the bandwidth file \n", port_number)
 	}
 
 	balance_file_name := "balance/" + "balance" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
 	balance_file, erra:= os.Create(balance_file_name)
 
 	if erra != nil{
-		fmt.Printf("port number %s failed to create the latency file \n", port_number)
+		fmt.Printf("port number %s failed to create the balance file \n", port_number)
+	}
+
+	blocklatency_file_name := "blocklatency/" + "blocklatency" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
+	blocklatency_file, errbl:= os.Create(blocklatency_file_name)
+
+	if errbl != nil{
+		fmt.Printf("port number %s failed to create the blocklatency file \n", port_number)
 	}
 
 	latencty_writer := csv.NewWriter(file)
@@ -637,6 +675,9 @@ func main(){
 
 	balance_writer := csv.NewWriter(balance_file)
 	balance_writer.Flush()
+
+	blocklatency_writer := csv.NewWriter(blocklatency_file)
+	blocklatency_writer.Flush()
 
 	connect_message := "CONNECT " + node_name + " " + local_ip_address + " " + port_number + "\n"
 	connect_message_byte := []byte(connect_message)
@@ -698,6 +739,14 @@ func main(){
 
 	balance_writer.Flush()
 	balance_writer_mutex.Unlock()
+
+	blocklatency_writer_mutex := sync.Mutex{}
+	blocklatency_writer_mutex.Lock()
+	for block_priority, latency := range block_latency_map {
+		blocklatency_writer.Write([]string{port_prefix, block_priority, latency})
+	}
+	blocklatency_writer.Flush()
+	blocklatency_writer_mutex.Unlock()
 
 	fmt.Println(port_prefix + "finished writing all files")
 }
