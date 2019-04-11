@@ -46,16 +46,16 @@ do
 		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/latency/latency_${vmnumber}_overall.csv ../results/${foldername}/latency
 		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/bandwidth/bandwidth_${vmnumber}_overall.csv ../results/${foldername}/bandwidth
 		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/balance/balance_${vmnumber}_overall.csv ../results/${foldername}/balance	
-		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/latency/latency_${vmnumber}_overall.csv ../results/${foldername}/blocklatency
-		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/bandwidth/bandwidth_${vmnumber}_overall.csv ../results/${foldername}/commitlatency
-		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/balance/balance_${vmnumber}_overall.csv ../results/${foldername}/split	
+		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/blocklatency/blocklatency_${vmnumber}_overall.csv ../results/${foldername}/blocklatency
+		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/commitlatency/commitlatency_${vmnumber}_overall.csv ../results/${foldername}/commitlatency
+		scp ${netid}@sp19-cs425-g16-0${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/split/split_${vmnumber}_overall.csv ../results/${foldername}/split	
 	else
 		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/latency/latency_${vmnumber}_overall.csv ../results/${foldername}/latency
 		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/bandwidth/bandwidth_${vmnumber}_overall.csv ../results/${foldername}/bandwidth
 		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/balance/balance_${vmnumber}_overall.csv ../results/${foldername}/balance	
-		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/latency/latency_${vmnumber}_overall.csv ../results/${foldername}/blocklatency
-		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/bandwidth/bandwidth_${vmnumber}_overall.csv ../results/${foldername}/commitlatency
-		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/balance/balance_${vmnumber}_overall.csv ../results/${foldername}/split	
+		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/blocklatency/blocklatency_${vmnumber}_overall.csv ../results/${foldername}/blocklatency
+		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/commitlatency/commitlatency_${vmnumber}_overall.csv ../results/${foldername}/commitlatency
+		scp ${netid}@sp19-cs425-g16-${vmnumber}.cs.illinois.edu:/home/${netid}/mp2/split/split_${vmnumber}_overall.csv ../results/${foldername}/split	
 	fi
 done
 
