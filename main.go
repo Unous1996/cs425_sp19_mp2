@@ -351,17 +351,6 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					solvedChan <- sum_string
 				}
 
-				/*
-				for i := len(collect_logs) - 1; i > 0; i-- {
-					curr_spilt := strings.Split(collect_logs[i], " ")
-					prev_split := strings.Split(collect_logs[i-1], " ")
-					if(curr_spilt[1] < prev_split[1]){
-						temp := collect_logs[i-1]
-						collect_logs[i-1] = collect_logs[i]
-						collect_logs[i] = temp
-					}
-				}
-				*/
 				holdback_mutex.Unlock()
 				gossipChan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
@@ -376,18 +365,6 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					prev_block.Solution = line_split[2]
 					fmt.Println("send_length = ", len(prev_block.State))
 					/*multicast prev block*/
-
-					/*
-					type Block struct {
-						index int `json: "index"`
-						Priority int `json: "priority"`
-						PrevHash string `json: "PrevHash"`
-						TransactionLogs []string `json: "TransactionLogs"`
-						solution string `json: "solution"`
-						state map[int]int `json: "state"`
-						next *Block `json: "next"`
-					}
-					*/
 
 					createdBlock := Block{Index: prev_block.Index, Priority:prev_block.Priority, CreatedTime:time.Now(), PrevHash:prev_block.PrevHash, TransactionLogs:prev_block.TransactionLogs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
 
@@ -457,8 +434,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					}
 					
 					duration := time.Since(received_block.CreatedTime).Seconds()
-					durationString := fmt.Sprintf("%s", duration)
-
+					durationString := fmt.Sprintf("%f", duration)
 					priorityString := strconv.Itoa(received_block.Priority)
 					blockLatencyMap[priorityString] = durationString
 
