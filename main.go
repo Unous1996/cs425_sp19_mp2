@@ -18,25 +18,25 @@ import (
 
 type Block struct {
 	Index int `json: "index"`
-	Prioirty int `json: "priority"`
-	Created_time time.Time `json: "created_time"`
-	Prev_hash string `json: "prev_hash"`
-	Transaction_logs []string `json: "transaction_logs"`
+	Priority int `json: "priority"`
+	CreatedTime time.Time `json: "CreatedTime"`
+	PrevHash string `json: "PrevHash"`
+	TransactionLogs []string `json: "TransactionLogs"`
 	Solution string `json: "solution"`
 	State map[int]int `json: "state"`
 	Next *Block `json: "next"`
 }
 
 var (
-	tail_chain = &Block{Index: 1}
+	tailChain = &Block{Index: 1}
 	candidates []*Block
 )
 
 var (
 	local_ip_address string
 	localhost string
-	port_prefix string
-	port_priority int
+	portPrefix string
+	portPriority int
 )
 
 var (
@@ -46,33 +46,35 @@ var (
 	gossip_fanout = 20
 	batch_size = 25
 	history = 100
-	has_issued_solve = false
-	max_number_of_nodes_per_machine = 12
+	maxNumberOfNodesPerMachine = 12
 	serverhost string
 )
 
 var (
-	working_chan chan bool
-	introduce_chan chan string
-	gossip_chan chan string
-	cleanup_chan chan os.Signal
-	solved_chan chan string
-	start_time_time time.Time
+	workingChan chan bool
+	introduceChan chan string
+	gossipChan chan string
+	cleanupChan chan os.Signal
+	solvedChan chan string
+	startTimeTime time.Time
 )
 
 var (
 	send_map map[string]*net.TCPConn
-	send_map_mutex = sync.RWMutex{}
+	sendMapMutex = sync.RWMutex{}
 	solutionMap map[string]*Block
-	bandwidth_map map[string]int
-	bandwidth_map_mutex = sync.RWMutex{}
+	bandwidthMap map[string]int
+	bandwidthMapMutex = sync.RWMutex{}
 	ip_2_index map[string]string
 	send_history map[string][]string
-	uncomitted_tail map[int]int
+	uncomittedTail map[int]int
 	split_map map[int]int
-	split_map_mutex = sync.RWMutex{}
-	block_latency_map map[string]string
-	block_latency_map_mutex = sync.RWMutex{}
+	splitMapMutex = sync.RWMutex{}
+	blockLatencyMap map[string]string
+	blockLatencyMapMutex = sync.RWMutex{}
+	commitLatencyMap map[string]string
+	commitLatencyMapMutex = sync.RWMutex{}
+
 	split_time []string
 )
 
@@ -131,11 +133,11 @@ func generateRandom(upper_bound int, num int) [] int{
 }
 
 func priorityLargerThan(attacker int, defenser int) bool {
-	if attacker == port_priority {
+	if attacker == portPriority {
 		return true
 	}
 
-	if defenser == port_priority {
+	if defenser == portPriority {
 		return false
 	}
 
@@ -143,7 +145,7 @@ func priorityLargerThan(attacker int, defenser int) bool {
 }
 
 func getCurrentDuration(precision string) string {
-	duration_float := time.Since(start_time_time).Seconds()
+	duration_float := time.Since(startTimeTime).Seconds()
 	var duration_string string
 	if precision == "int" {
 		duration_string = fmt.Sprintf("%d", int(duration_float))
@@ -155,30 +157,30 @@ func getCurrentDuration(precision string) string {
 }
 
 func gossip_transaction(){
-	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(cleanupChan, os.Interrupt, syscall.SIGTERM)
 	for {
-		gossip_message := <-gossip_chan
+		gossip_message := <-gossipChan
 		b := []byte(gossip_message)
 
-		send_map_mutex.RLock()
+		sendMapMutex.RLock()
 		skipped := 0
 		for _, conn := range send_map {
-			send_map_mutex.RUnlock()
+			sendMapMutex.RUnlock()
 			
 			if (conn.RemoteAddr().String() == localhost) {
-				send_map_mutex.RLock()
+				sendMapMutex.RLock()
 				skipped += 1
 				continue
 			}
 
-			send_map_mutex.RLock()
+			sendMapMutex.RLock()
 			conn.Write(b)
 
 		}
-		bandwidth_map_mutex.Lock()
-		bandwidth_map[getCurrentDuration("int")] += len(b) * (len(send_map) - skipped)
-		bandwidth_map_mutex.Unlock()
-		send_map_mutex.RUnlock()
+		bandwidthMapMutex.Lock()
+		bandwidthMap[getCurrentDuration("int")] += len(b) * (len(send_map) - skipped)
+		bandwidthMapMutex.Unlock()
+		sendMapMutex.RUnlock()
 	}
 }
 
@@ -196,11 +198,11 @@ func periodically_send_transaction(){
 		send_message_key := strings.Split(collect_logs[index], " ")[2]
 
 		count := 0
-		send_map_mutex.Lock()
+		sendMapMutex.Lock()
 		for remote_host, conn := range send_map{
-			send_map_mutex.Unlock()
+			sendMapMutex.Unlock()
 			if count == gossip_fanout {
-				send_map_mutex.Lock()
+				sendMapMutex.Lock()
 				break
 			}
 
@@ -213,7 +215,7 @@ func periodically_send_transaction(){
 			}
 
 			if found {
-				send_map_mutex.Lock()
+				sendMapMutex.Lock()
 				continue
 			}
 
@@ -223,12 +225,12 @@ func periodically_send_transaction(){
 			total_len += len(send_message)
 
 			count += 1
-			send_map_mutex.Lock()
+			sendMapMutex.Lock()
 		}
-		send_map_mutex.Unlock()
-		bandwidth_map_mutex.Lock()
-		bandwidth_map[getCurrentDuration("int")] += total_len
-		bandwidth_map_mutex.Unlock()
+		sendMapMutex.Unlock()
+		bandwidthMapMutex.Lock()
+		bandwidthMap[getCurrentDuration("int")] += total_len
+		bandwidthMapMutex.Unlock()
 	}
 }
 
@@ -244,7 +246,7 @@ func printTransaction(port_num string, xaction string) string{
 }
 
 func readMessage(node_name string, ip_address string, port_number string, conn *net.TCPConn){
-	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(cleanupChan, os.Interrupt, syscall.SIGTERM)
 	buff := make([]byte, 10000)
 	for {
 		j, err := conn.Read(buff)
@@ -253,18 +255,18 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			failed_remote := conn.RemoteAddr().String()
 			if(failed_remote == serverhost){
 
-				fmt.Println(port_prefix + "Server failed, aborting...")
-				working_chan <- true
+				fmt.Println(portPrefix + "Server failed, aborting...")
+				workingChan <- true
 			}
-			send_map_mutex.Lock()
+			sendMapMutex.Lock()
 			delete(send_map, failed_remote)
-			send_map_mutex.Unlock()
+			sendMapMutex.Unlock()
 			break
 		}
 
-		bandwidth_map_mutex.Lock()
-		bandwidth_map[getCurrentDuration("int")] += j
-		bandwidth_map_mutex.Unlock()
+		bandwidthMapMutex.Lock()
+		bandwidthMap[getCurrentDuration("int")] += j
+		bandwidthMapMutex.Unlock()
 		recevied_lines := strings.Split(string(buff[0:j]), "\n")
 		for _, line := range recevied_lines {
 			line_split := strings.Split(line, " ")
@@ -273,11 +275,11 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				if(len(line_split) != 4){
 					continue				
 				}
-				introduce_chan <- line
+				introduceChan <- line
 			}
 
 			if(line_split[0] == "DIE" || line_split[0] == "QUIT"){
-				working_chan <- true
+				workingChan <- true
 			}
 
 			if(line_split[0] == "TRANSACTION"){
@@ -289,8 +291,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				destination, _ := strconv.Atoi(line_split[4])
 				amount, _ := strconv.Atoi(line_split[5])
 
-				_, ok := tail_chain.State[source]
-				if(source != 0 && (!ok || tail_chain.State[source] < amount)) {
+				_, ok := tailChain.State[source]
+				if(source != 0 && (!ok || tailChain.State[source] < amount)) {
 					continue
 				}
 
@@ -314,21 +316,21 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				collect_logs = append(collect_logs, line)
 
-				uncomitted_tail[source] -= amount
-				uncomitted_tail[destination] += amount
+				uncomittedTail[source] -= amount
+				uncomittedTail[destination] += amount
 
 				fmt.Println(len(collect_logs))
 				for len(collect_logs) > batch_size {
 					var new_tentative_block *Block
 
-					if tail_chain.Index > 1 {
-						new_tentative_block = &Block{Index: tail_chain.Index + 1, Prioirty: port_priority, Created_time: time.Now(), Prev_hash: tail_chain.Solution, Transaction_logs:collect_logs[:batch_size]}
+					if tailChain.Index > 1 {
+						new_tentative_block = &Block{Index: tailChain.Index + 1, Priority: portPriority, CreatedTime: time.Now(), PrevHash: tailChain.Solution, TransactionLogs:collect_logs[:batch_size]}
 					} else {
-						new_tentative_block = &Block{Index: tail_chain.Index + 1, Prioirty: port_priority, Created_time: time.Now(), Transaction_logs:collect_logs[:batch_size]}
+						new_tentative_block = &Block{Index: tailChain.Index + 1, Priority: portPriority, CreatedTime: time.Now(), TransactionLogs:collect_logs[:batch_size]}
 					}
 
 					new_tentative_block.State = make(map[int]int)
-					for account, amount := range uncomitted_tail {
+					for account, amount := range uncomittedTail {
 						new_tentative_block.State[account] = amount
 					}
 
@@ -336,17 +338,17 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 					hash_string := ""
 					if(new_tentative_block.Index > 1) {
-						hash_string += new_tentative_block.Prev_hash
+						hash_string += new_tentative_block.PrevHash
 					}
 
-					for _, value := range new_tentative_block.Transaction_logs {
+					for _, value := range new_tentative_block.TransactionLogs {
 						hash_string += value
 					}
 
 					sum := sha256.Sum256([]byte(hash_string))
 					sum_string := fmt.Sprintf("%x", sum)
 					solutionMap[sum_string] = new_tentative_block
-					solved_chan <- sum_string
+					solvedChan <- sum_string
 				}
 
 				/*
@@ -361,7 +363,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				}
 				*/
 				holdback_mutex.Unlock()
-				gossip_chan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
+				gossipChan <- ("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			}
 
 			if(line_split[0] == "SOLVED"){
@@ -378,21 +380,27 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					/*
 					type Block struct {
 						index int `json: "index"`
-						prioirty int `json: "priority"`
-						prev_hash string `json: "prev_hash"`
-						transaction_logs []string `json: "transaction_logs"`
+						Priority int `json: "priority"`
+						PrevHash string `json: "PrevHash"`
+						TransactionLogs []string `json: "TransactionLogs"`
 						solution string `json: "solution"`
 						state map[int]int `json: "state"`
 						next *Block `json: "next"`
 					}
 					*/
 
-					createdBlock := Block{Index: prev_block.Index, Prioirty:prev_block.Prioirty, Created_time:time.Now(), Prev_hash:prev_block.Prev_hash, Transaction_logs:prev_block.Transaction_logs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
+					createdBlock := Block{Index: prev_block.Index, Priority:prev_block.Priority, CreatedTime:time.Now(), PrevHash:prev_block.PrevHash, TransactionLogs:prev_block.TransactionLogs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
 
 					/*Take down how much time does it take for each transaction to appear in a block*/
-					for _, value := range createdBlock.State {
+					for _, value := range createdBlock.TransactionLogs {
+
+						timeDifference := printTransaction(port_number, value)
+						commitLatencyMapMutex.Lock()
+						commitLatencyMap[strings.Split(value, " ")[2]] = timeDifference
+						commitLatencyMapMutex.Unlock()
 
 					}
+					fmt.Println("len = ", len(commitLatencyMap))
 
 					prevBlockBytes, err := json.Marshal(createdBlock)
 
@@ -402,26 +410,26 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 					prefix := "BLOCK "
 					suffix := "\n"
-					tail_chain = &createdBlock
+					tailChain = &createdBlock
 					newBytes := []byte(prefix + string(prevBlockBytes) + suffix)
 
 
-					send_map_mutex.RLock()
+					sendMapMutex.RLock()
 					for _, conn := range send_map {
-						send_map_mutex.RUnlock()
+						sendMapMutex.RUnlock()
 						if(conn.RemoteAddr().String() == localhost){
-							send_map_mutex.RLock()
+							sendMapMutex.RLock()
 							continue
 						}
 
 						conn.Write(newBytes)
-						bandwidth_map_mutex.Lock()
-						bandwidth_map[getCurrentDuration("int")] += len(newBytes)
-						bandwidth_map_mutex.Unlock()
-						send_map_mutex.RLock()
+						bandwidthMapMutex.Lock()
+						bandwidthMap[getCurrentDuration("int")] += len(newBytes)
+						bandwidthMapMutex.Unlock()
+						sendMapMutex.RLock()
 
 					}
-					send_map_mutex.RUnlock()
+					sendMapMutex.RUnlock()
 
 					/*not sure whether I need to empty the solution list now*/
 				}
@@ -439,25 +447,25 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					fmt.Println(err)
 				}
 
-				if received_block.Index == tail_chain.Index + 1 || (received_block.Index == tail_chain.Index && priorityLargerThan(received_block.Index, tail_chain.Index)){
-					if received_block.Index != tail_chain.Index + 1 {
+				if received_block.Index == tailChain.Index + 1 || (received_block.Index == tailChain.Index && priorityLargerThan(received_block.Index, tailChain.Index)){
+					if received_block.Index != tailChain.Index + 1 {
 						fmt.Println("Split occured!")
-						split_map_mutex.Lock()
-						split_map[tail_chain.Index] += 1
-						split_map_mutex.Unlock()
+						splitMapMutex.Lock()
+						split_map[tailChain.Index] += 1
+						splitMapMutex.Unlock()
 						split_time = append(split_time, getCurrentDuration("float"))
 					}
 					
-					duration := time.Since(received_block.Created_time)
+					duration := time.Since(received_block.CreatedTime)
 					durationString := fmt.Sprintf("%s", duration)
 
-					priorityString := strconv.Itoa(received_block.Prioirty)
-					block_latency_map[priorityString] = durationString[:len(durationString)-2]
+					priorityString := strconv.Itoa(received_block.Priority)
+					blockLatencyMap[priorityString] = durationString[:len(durationString)-2]
 
 					fmt.Println("received_block_length = ", len(received_block.State))
-					tail_chain.Next = &received_block
-					tail_chain = &received_block
-					uncomitted_tail = received_block.State
+					tailChain.Next = &received_block
+					tailChain = &received_block
+					uncomittedTail = received_block.State
 					for key, _ := range(solutionMap){
 						delete(solutionMap, key)
 					}
@@ -469,18 +477,18 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 }
 
 func addRemote(node_name string, ip_address string, port_number string){
-	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(cleanupChan, os.Interrupt, syscall.SIGTERM)
 	for {
-		line := <-introduce_chan
+		line := <-introduceChan
 		line_split := strings.Split(line, " ")
 		remotehost := line_split[2] + ":" + line_split[3]
 
-		send_map_mutex.RLock()		
+		sendMapMutex.RLock()		
 		if _, ok := send_map[remotehost]; ok {
-			send_map_mutex.RUnlock()
+			sendMapMutex.RUnlock()
 			continue 
 		}
-		send_map_mutex.RUnlock()
+		sendMapMutex.RUnlock()
 
 		tcp_add, _ := net.ResolveTCPAddr("tcp", remotehost)
 		remote_connection, err := net.DialTCP("tcp", nil, tcp_add)
@@ -492,31 +500,31 @@ func addRemote(node_name string, ip_address string, port_number string){
 			continue		
 		}
 		
-		send_map_mutex.Lock()
+		sendMapMutex.Lock()
 		send_map[remotehost] = remote_connection
-		send_map_mutex.Unlock()
+		sendMapMutex.Unlock()
 
 		defer remote_connection.Close()
 		go readMessage(node_name, ip_address, port_number, remote_connection)
-		send_map_mutex.RLock()
+		sendMapMutex.RLock()
 		sendMessageLen := 0
 		for _, conn := range send_map {
-			send_map_mutex.RUnlock()
+			sendMapMutex.RUnlock()
 			send_message := []byte("INTRODUCE " + node_name + " " + ip_address + " " + port_number + "\n" + line + "\n")
 			sendMessageLen = len(send_message)
 			conn.Write(send_message)
-			send_map_mutex.RLock()
+			sendMapMutex.RLock()
 		}
-		bandwidth_map_mutex.Lock()
-		bandwidth_map[getCurrentDuration("int")] += sendMessageLen * len(send_map)
-		bandwidth_map_mutex.Unlock()
-		send_map_mutex.RUnlock()
+		bandwidthMapMutex.Lock()
+		bandwidthMap[getCurrentDuration("int")] += sendMessageLen * len(send_map)
+		bandwidthMapMutex.Unlock()
+		sendMapMutex.RUnlock()
 	}
-	close(introduce_chan)
+	close(introduceChan)
 }
 
 func start_server(node_name string, ip_address string, port_num string){
-	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(cleanupChan, os.Interrupt, syscall.SIGTERM)
 
 	for {
 		tcp_addr, _ := net.ResolveTCPAddr("tcp", localhost)
@@ -545,7 +553,7 @@ func start_server(node_name string, ip_address string, port_num string){
 func request_solution(server_connection *net.TCPConn){
 
 	for {
-		sum_string := <- solved_chan
+		sum_string := <- solvedChan
 		send_string := "SOLVE " + sum_string + "\n"
 		fmt.Println("send_string = ", send_string)
 		server_connection.Write([]byte(send_string))
@@ -555,7 +563,7 @@ func request_solution(server_connection *net.TCPConn){
 
 func global_map_init(){
 	send_map = make(map[string]*net.TCPConn)
-	bandwidth_map = make(map[string]int)
+	bandwidthMap = make(map[string]int)
 	ip_2_index = map[string]string{
 		"10.192.137.227":"0",
 		"172.22.158.52":"2",
@@ -570,31 +578,32 @@ func global_map_init(){
 	}
 	send_history = make(map[string][]string)
 	logs_analysis = make(map[string]string)
-	block_latency_map = make(map[string]string)
+	blockLatencyMap = make(map[string]string)
 	solutionMap = make(map[string]*Block)
-	uncomitted_tail = make(map[int]int)
+	uncomittedTail = make(map[int]int)
 	split_map = make(map[int]int)
+	commitLatencyMap = make(map[string]string)
 }
 
 func channel_init(){
-	introduce_chan = make(chan string)
-	gossip_chan = make(chan string)
-	working_chan = make(chan bool)
-	solved_chan = make(chan string)
-	cleanup_chan = make(chan os.Signal)
+	introduceChan = make(chan string)
+	gossipChan = make(chan string)
+	workingChan = make(chan bool)
+	solvedChan = make(chan string)
+	cleanupChan = make(chan os.Signal)
 }
 
 func block_init(){
-	tail_chain.State = make(map[int]int)
-	tail_chain.Prioirty = port_priority
-	tail_chain.Created_time = time.Now()
+	tailChain.State = make(map[int]int)
+	tailChain.Priority = portPriority
+	tailChain.CreatedTime = time.Now()
 }
 
 func variable_init(port_number string){
-	port_prefix = ip_2_index[local_ip_address] + "_" + port_number
+	portPrefix = ip_2_index[local_ip_address] + "_" + port_number
 	port_number_int, _ := strconv.Atoi(port_number)
 	machine_number_int, _ := strconv.Atoi(port_number)
-	port_priority = port_number_int * max_number_of_nodes_per_machine + machine_number_int
+	portPriority = port_number_int * maxNumberOfNodesPerMachine + machine_number_int
 }
 
 func main_init(port_number string){
@@ -605,9 +614,9 @@ func main_init(port_number string){
 }
 
 func signal_handler(){
-	<-cleanup_chan
+	<-cleanupChan
 	fmt.Println("signal_handler invoked")
-	working_chan <- true
+	workingChan <- true
 }
 
 func get_local_ip_address(port_number string){
@@ -642,10 +651,10 @@ func main(){
 	node_name := os.Args[1]
 	port_number := os.Args[2]
 	main_init(port_number)
-	signal.Notify(cleanup_chan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(cleanupChan, os.Interrupt, syscall.SIGTERM)
 	
 	start_time_int, _ := strconv.ParseInt(os.Args[3],10,64)
-	start_time_time = time.Unix(start_time_int,0)
+	startTimeTime = time.Unix(start_time_int,0)
 
 	get_local_ip_address(port_number)
 
@@ -684,6 +693,13 @@ func main(){
 		fmt.Printf("port number %s failed to create the split file \n", port_number)
 	}
 
+	commitlatency_file_name := "commitlatency/" + "commitlatency" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
+	commitlatency_file, errc:= os.Create(commitlatency_file_name)
+
+	if errc != nil {
+		fmt.Printf("port number %s failed to create the commitlatency file \n", port_number)
+	}
+
 	latencty_writer := csv.NewWriter(file)
 	latencty_writer.Flush()
 
@@ -699,6 +715,9 @@ func main(){
 	split_writer := csv.NewWriter(split_file)
 	split_writer.Flush()
 
+	commitlatency_writer := csv.NewWriter(commitlatency_file)
+	commitlatency_writer.Flush()
+
 	connect_message := "CONNECT " + node_name + " " + local_ip_address + " " + port_number + "\n"
 	connect_message_byte := []byte(connect_message)
 
@@ -707,7 +726,7 @@ func main(){
 	go addRemote(node_name, local_ip_address, port_number)
 
 	//Connect to server
-	port_prefix := ip_2_index[local_ip_address] + "_" + port_number
+	portPrefix := ip_2_index[local_ip_address] + "_" + port_number
 	serverhost = server_address + ":" + server_portnumber
 	for {
 		tcp_add, _ := net.ResolveTCPAddr("tcp", serverhost)
@@ -728,7 +747,7 @@ func main(){
 	go gossip_transaction()
 	go periodically_send_transaction()
 
-	<-working_chan
+	<-workingChan
 	time.Sleep(7*time.Second)
 
 	latencty_writer_mutex := sync.Mutex{}
@@ -741,7 +760,7 @@ func main(){
 
 	bandwidth_writer_mutex := sync.Mutex{}
 	bandwidth_writer_mutex.Lock()
-	for time, bytes := range bandwidth_map {
+	for time, bytes := range bandwidthMap {
 		str_bytes := strconv.Itoa(bytes)
 		bandwidth_writer.Write([]string{time,str_bytes})
 	}
@@ -751,10 +770,10 @@ func main(){
 
 	balance_writer_mutex := sync.Mutex{}
 	balance_writer_mutex.Lock()
-	for account_int, value_int := range tail_chain.State {
+	for account_int, value_int := range tailChain.State {
 		account_stirng := strconv.Itoa(account_int)
 		value_string := strconv.Itoa(value_int)
-		balance_writer.Write([]string{port_prefix, account_stirng, value_string})
+		balance_writer.Write([]string{portPrefix, account_stirng, value_string})
 	}
 
 	balance_writer.Flush()
@@ -762,8 +781,8 @@ func main(){
 
 	blocklatency_writer_mutex := sync.Mutex{}
 	blocklatency_writer_mutex.Lock()
-	for block_priority, latency := range block_latency_map {
-		blocklatency_writer.Write([]string{port_prefix, block_priority, latency})
+	for block_priority, latency := range blockLatencyMap {
+		blocklatency_writer.Write([]string{portPrefix, block_priority, latency})
 	}
 	blocklatency_writer.Flush()
 	blocklatency_writer_mutex.Unlock()
@@ -778,7 +797,16 @@ func main(){
 	split_writer.Flush()
 	split_writer_mutex.Unlock()
 
-	fmt.Println(port_prefix + "finished writing all files")
+	fmt.Println("Finall, the length of the commitLatencyMap is", len(commitLatencyMap))
+	commitlatency_writer_mutex := sync.Mutex{}
+	commitlatency_writer_mutex.Lock()
+	for transactionID, latency := range commitLatencyMap{
+		commitlatency_writer.Write([]string{transactionID, latency})
+	}
+	commitlatency_writer.Flush()
+	commitlatency_writer_mutex.Unlock()
+
+	fmt.Println(portPrefix + "finished writing all files")
 }
 
 /*
@@ -792,12 +820,12 @@ func main(){
 	struct:
 
 	head_chain *block
-	tail_chain *block
+	tailChain *block
 
 	type block struct{
 		index int `json: "index"`
-		prev_hash String `json: "prev_hash"`
-		transaction_logs []String `json: "transaction_logs"`
+		PrevHash String `json: "PrevHash"`
+		TransactionLogs []String `json: "TransactionLogs"`
 		solution String `json: "solution"`
 		next []*block `json: "next"`
 	}
