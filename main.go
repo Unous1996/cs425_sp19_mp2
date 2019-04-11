@@ -70,7 +70,9 @@ var (
 	send_history map[string][]string
 	uncomitted_tail map[int]int
 	split_map map[int]int
+	split_map_mutex = sync.RWMutex{}
 	block_latency_map map[string]string
+	block_latency_map_mutex = sync.RWMutex{}
 	split_time []string
 )
 
@@ -385,9 +387,14 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					}
 					*/
 
-					created_block := Block{Index: prev_block.Index, Prioirty:prev_block.Prioirty, Created_time:time.Now(), Prev_hash:prev_block.Prev_hash, Transaction_logs:prev_block.Transaction_logs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
+					createdBlock := Block{Index: prev_block.Index, Prioirty:prev_block.Prioirty, Created_time:time.Now(), Prev_hash:prev_block.Prev_hash, Transaction_logs:prev_block.Transaction_logs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
 
-					prev_block_bytes, err := json.Marshal(created_block)
+					/*Take down how much time does it take for each transaction to appear in a block*/
+					for _, value := range createdBlock.State {
+
+					}
+
+					prevBlockBytes, err := json.Marshal(createdBlock)
 
 					if err != nil {
 						fmt.Println("Error while creating the new block", err)
@@ -395,8 +402,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 					prefix := "BLOCK "
 					suffix := "\n"
-					tail_chain = &created_block
-					new_bytes := []byte(prefix + string(prev_block_bytes) + suffix)
+					tail_chain = &createdBlock
+					newBytes := []byte(prefix + string(prevBlockBytes) + suffix)
 
 
 					send_map_mutex.RLock()
@@ -407,9 +414,9 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 							continue
 						}
 
-						conn.Write(new_bytes)
+						conn.Write(newBytes)
 						bandwidth_map_mutex.Lock()
-						bandwidth_map[getCurrentDuration("int")] += len(new_bytes)
+						bandwidth_map[getCurrentDuration("int")] += len(newBytes)
 						bandwidth_map_mutex.Unlock()
 						send_map_mutex.RLock()
 
@@ -434,13 +441,16 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				if received_block.Index == tail_chain.Index + 1 || (received_block.Index == tail_chain.Index && priorityLargerThan(received_block.Index, tail_chain.Index)){
 					if received_block.Index != tail_chain.Index + 1 {
+						fmt.Println("Split occured!")
+						split_map_mutex.Lock()
 						split_map[tail_chain.Index] += 1
+						split_map_mutex.Unlock()
 						split_time = append(split_time, getCurrentDuration("float"))
 					}
 					
 					duration := time.Since(received_block.Created_time)
 					durationString := fmt.Sprintf("%s", duration)
-					
+
 					priorityString := strconv.Itoa(received_block.Prioirty)
 					block_latency_map[priorityString] = durationString[:len(durationString)-2]
 
@@ -667,6 +677,13 @@ func main(){
 		fmt.Printf("port number %s failed to create the blocklatency file \n", port_number)
 	}
 
+	split_file_name := "split/" + "split" + ip_2_index[local_ip_address]+ "_" + port_number + ".csv"
+	split_file, errs:= os.Create(split_file_name)
+
+	if errs != nil {
+		fmt.Printf("port number %s failed to create the split file \n", port_number)
+	}
+
 	latencty_writer := csv.NewWriter(file)
 	latencty_writer.Flush()
 
@@ -678,6 +695,9 @@ func main(){
 
 	blocklatency_writer := csv.NewWriter(blocklatency_file)
 	blocklatency_writer.Flush()
+
+	split_writer := csv.NewWriter(split_file)
+	split_writer.Flush()
 
 	connect_message := "CONNECT " + node_name + " " + local_ip_address + " " + port_number + "\n"
 	connect_message_byte := []byte(connect_message)
@@ -747,6 +767,16 @@ func main(){
 	}
 	blocklatency_writer.Flush()
 	blocklatency_writer_mutex.Unlock()
+
+	split_writer_mutex := sync.Mutex{}
+	split_writer_mutex.Lock()
+	for index_int, count_int := range split_map{
+		index_string := strconv.Itoa(index_int)
+		count_string := strconv.Itoa(count_int)
+		split_writer.Write([]string{index_string, count_string})
+	}
+	split_writer.Flush()
+	split_writer_mutex.Unlock()
 
 	fmt.Println(port_prefix + "finished writing all files")
 }

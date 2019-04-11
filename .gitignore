@@ -4,6 +4,7 @@ mergeresults/
 latency/
 bandwidth/
 blocklatency/
+split/
 .idea/workspace.xml
 results/
 balance/
