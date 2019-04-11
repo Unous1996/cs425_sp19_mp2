@@ -456,8 +456,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 						split_time = append(split_time, getCurrentDuration("float"))
 					}
 					
-					duration := time.Since(received_block.CreatedTime).Nanoseconds()
-					durationString := fmt.Sprintf("%s", float64(duration/1000000.0))
+					duration := time.Since(received_block.CreatedTime).Seconds()
+					durationString := fmt.Sprintf("%s", duration)
 
 					priorityString := strconv.Itoa(received_block.Priority)
 					blockLatencyMap[priorityString] = durationString[:len(durationString)-2]
