@@ -10,7 +10,7 @@ go build main.go
 git commit -a -m "$(date)"
 git push origin master
 
-for i in {2..6};
+for i in {2..3};
 do
 
 if ((i < 10))
