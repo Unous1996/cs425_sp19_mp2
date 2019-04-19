@@ -295,7 +295,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				if(source != 0 && (!ok || committedTail[source] < amount)){
 					continue
 				}
-				fmt.Printf("port prefix = %s, tail_chain_len = %d\n", portPrefix, len(committedTail))
+				
 				holdback_mutex.Lock()
 				found := false
 				for key, _ := range logs_analysis {
@@ -768,7 +768,6 @@ func main(){
 
 	balance_writer_mutex := sync.Mutex{}
 	balance_writer_mutex.Lock()
-	fmt.Printf("For %s, the lenngth of the balance map in the end is %d\n", portPrefix, len(committedTail))
 	for account_int, value_int := range committedTail {
 		account_stirng := strconv.Itoa(account_int)
 		value_string := strconv.Itoa(value_int)
