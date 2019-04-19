@@ -9,4 +9,5 @@ split/
 .idea/workspace.xml
 results/
 balance/
+rawcp2/
 simulate.sh
