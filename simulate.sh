@@ -9,7 +9,7 @@ fi
 mkdir -p logs/"$d/latency"
 mkdir -p logs/"$d/bandwidth"
 
-for i in {0..10}
+for i in {0..1}
 do
 	newport=`expr $port + $i`
 	./main node $newport "$1" &

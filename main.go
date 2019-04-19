@@ -68,6 +68,7 @@ var (
 	ip_2_index map[string]string
 	send_history map[string][]string
 	uncomittedTail map[int]int
+	committedTail map[int]int
 	split_map map[int]int
 	splitMapMutex = sync.RWMutex{}
 	blockLatencyMap map[string]string
@@ -290,11 +291,11 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				destination, _ := strconv.Atoi(line_split[4])
 				amount, _ := strconv.Atoi(line_split[5])
 
-				_, ok := tailChain.State[source]
-				if(source != 0 && (!ok || tailChain.State[source] < amount)) {
+				_, ok := committedTail[source]
+				if(source != 0 && (!ok || committedTail[source] < amount)){
 					continue
 				}
-
+				fmt.Printf("port prefix = %s, tail_chain_len = %d\n", portPrefix, len(committedTail))
 				holdback_mutex.Lock()
 				found := false
 				for key, _ := range logs_analysis {
@@ -320,6 +321,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 				uncomittedTail[destination] += amount
 
 				fmt.Println(len(collect_logs))
+
 				for len(collect_logs) > batch_size {
 					var new_tentative_block *Block
 
@@ -356,7 +358,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 			}
 
 			if(line_split[0] == "SOLVED"){
-				fmt.Println("Received a SOLVED message ")
+				fmt.Printf("Port prefix %s Received a SOLVED message \n", portPrefix)
 				if(len(line_split) != 3){
 					continue
 				}
@@ -377,7 +379,6 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 						commitLatencyMapMutex.Unlock()
 
 					}
-					fmt.Println("len = ", len(commitLatencyMap))
 
 					prevBlockBytes, err := json.Marshal(createdBlock)
 
@@ -388,8 +389,17 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					prefix := "BLOCK "
 					suffix := "\n"
 					tailChain = &createdBlock
-					newBytes := []byte(prefix + string(prevBlockBytes) + suffix)
+					fmt.Println("Tail chain state length = ", len(committedTail))
+					/*Time to update the comitted map*/
+					for key, _ := range(committedTail){
+						delete(committedTail, key)
+					}
 
+					for key, value := range(tailChain.State){
+						committedTail[key] = value
+					}
+
+					newBytes := []byte(prefix + string(prevBlockBytes) + suffix)
 
 					sendMapMutex.RLock()
 					for _, conn := range send_map {
@@ -407,7 +417,9 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 					}
 					sendMapMutex.RUnlock()
-
+					for key, _ := range(solutionMap){
+						delete(solutionMap, key)
+					}
 					/*not sure whether I need to empty the solution list now*/
 				}
 			}
@@ -441,6 +453,15 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					fmt.Println("received_block_length = ", len(received_block.State))
 					tailChain.Next = &received_block
 					tailChain = &received_block
+
+					for key, _ := range(committedTail){
+						delete(committedTail, key)
+					}
+
+					for key, value := range(tailChain.State){
+						committedTail[key] = value
+					}
+
 					uncomittedTail = received_block.State
 					for key, _ := range(solutionMap){
 						delete(solutionMap, key)
@@ -557,6 +578,7 @@ func global_map_init(){
 	blockLatencyMap = make(map[string]string)
 	solutionMap = make(map[string]*Block)
 	uncomittedTail = make(map[int]int)
+	committedTail = make(map[int]int)
 	split_map = make(map[int]int)
 	commitLatencyMap = make(map[string]string)
 }
@@ -746,7 +768,8 @@ func main(){
 
 	balance_writer_mutex := sync.Mutex{}
 	balance_writer_mutex.Lock()
-	for account_int, value_int := range tailChain.State {
+	fmt.Printf("For %s, the lenngth of the balance map in the end is %d\n", portPrefix, len(committedTail))
+	for account_int, value_int := range committedTail {
 		account_stirng := strconv.Itoa(account_int)
 		value_string := strconv.Itoa(value_int)
 		balance_writer.Write([]string{portPrefix, account_stirng, value_string})
@@ -773,7 +796,6 @@ func main(){
 	split_writer.Flush()
 	split_writer_mutex.Unlock()
 
-	fmt.Println("Finall, the length of the commitLatencyMap is", len(commitLatencyMap))
 	commitlatency_writer_mutex := sync.Mutex{}
 	commitlatency_writer_mutex.Lock()
 	for transactionID, latency := range commitLatencyMap{
