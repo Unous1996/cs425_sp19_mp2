@@ -3,7 +3,3 @@ aol3@sp19-cs425-g16-03.cs.illinois.edu
 aol3@sp19-cs425-g16-04.cs.illinois.edu
 aol3@sp19-cs425-g16-05.cs.illinois.edu
 aol3@sp19-cs425-g16-06.cs.illinois.edu
-aol3@sp19-cs425-g16-07.cs.illinois.edu
-aol3@sp19-cs425-g16-08.cs.illinois.edu
-aol3@sp19-cs425-g16-09.cs.illinois.edu
-aol3@sp19-cs425-g16-10.cs.illinois.edu

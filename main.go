@@ -435,7 +435,6 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 
 				/*
 				func ParseDuration string 2 duration
-
 				 */
 				var received_block Block
 				err := json.Unmarshal([]byte(line[6:]), &received_block)

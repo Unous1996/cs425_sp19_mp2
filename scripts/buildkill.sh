@@ -12,7 +12,7 @@ git_password="fakepassword"
 
 git_repo="https://github.com/username/cs425_sp19_mp2"
 
-for i in {2..10};
+for i in {2..6};
 do
 
 if ((i < 10))
