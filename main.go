@@ -19,6 +19,7 @@ import (
 type Block struct {
 	Index int `json: "index"`
 	Priority int `json: "priority"`
+	ID string
 	CreatedTime time.Time `json: "CreatedTime"`
 	PrevHash string `json: "PrevHash"`
 	TransactionLogs []string `json: "TransactionLogs"`
@@ -99,6 +100,10 @@ func checkErr(err error) int {
 		return -1
 	}
 	return 1     
+}
+
+func generateBlockId(index int, priority int) string {
+	return strconv.Itoa(index) + "_" + strconv.Itoa(priority)
 }
 
 func generateRandom(upper_bound int, num int) [] int{
@@ -332,6 +337,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					}
 
 					new_tentative_block.State = make(map[int]int)
+					new_tentative_block.ID = generateBlockId(new_tentative_block.Index, new_tentative_block.Priority)
 					for account, amount := range uncomittedTail {
 						new_tentative_block.State[account] = amount
 					}
@@ -369,7 +375,8 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					/*multicast prev block*/
 
 					createdBlock := Block{Index: prev_block.Index, Priority:prev_block.Priority, CreatedTime:time.Now(), PrevHash:prev_block.PrevHash, TransactionLogs:prev_block.TransactionLogs, Solution:prev_block.Solution, State:prev_block.State, Next:prev_block.Next}
-
+					createdBlock.ID = generateBlockId(createdBlock.Index, createdBlock.Priority)
+					blockLatencyMap[createdBlock.ID] = "0.000"
 					/*Take down how much time does it take for each transaction to appear in a block*/
 					for _, value := range createdBlock.TransactionLogs {
 
@@ -447,8 +454,7 @@ func readMessage(node_name string, ip_address string, port_number string, conn *
 					
 					duration := time.Since(received_block.CreatedTime).Seconds()
 					durationString := fmt.Sprintf("%f", duration)
-					priorityString := strconv.Itoa(received_block.Priority)
-					blockLatencyMap[priorityString] = durationString
+					blockLatencyMap[received_block.ID] = durationString
 
 					fmt.Println("received_block_length = ", len(received_block.State))
 					tailChain.Next = &received_block
